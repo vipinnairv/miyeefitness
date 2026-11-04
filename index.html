@@ -3,11 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>MiyeeFit Pro • Miyee Tech Labs</title>
-<meta name="description" content="MiyeeFit Pro: Personal Fitness, Weight Reduction & Pure Vegetarian Nutrition Tracker by Miyee Tech Labs. 100% client-side privacy with optional Cloudflare Vault sync.">
-<meta name="theme-color" content="#F59E0B">
+<title>MiyeeFit Pro • Fitness &amp; Pure Veg Nutrition Tracker | Miyee Tech Labs</title>
+<meta name="description" content="Track steps, water, workouts and weight, get realistic pure vegetarian and Jain meal plans, a daily Fitness Score and personal trainer support. Free, works offline and installs on any phone or laptop.">
 <meta name="author" content="Miyee Tech Labs, miyeetechlabs.com">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23F59E0B'/%3E%3Cstop offset='1' stop-color='%23EA580C'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M14 44V20l10 14 8-11 8 11 10-14v24' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta name="application-name" content="MiyeeFit Pro">
+<meta name="theme-color" content="#F59E0B" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F141C" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="./">
+
+<!-- Install as an app (PWA) -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiyeeFit">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+<!-- Link preview (WhatsApp, LinkedIn, Facebook, X, Slack, Teams). Relative URLs are made absolute by the Worker. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MiyeeFit Pro by Miyee Tech Labs">
+<meta property="og:title" content="MiyeeFit Pro: Fitness &amp; Pure Veg Nutrition Tracker">
+<meta property="og:description" content="Steps, water, workouts, weight, Jain and vegetarian meal plans, a daily Fitness Score and personal trainer support. Free and installable on any device.">
+<meta property="og:url" content="./">
+<meta property="og:image" content="og-image.jpg">
+<meta property="og:image:secure_url" content="og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MiyeeFit Pro Fitness Dashboard showing steps, water, calorie balance and weight progress">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MiyeeFit Pro: Fitness &amp; Pure Veg Nutrition Tracker">
+<meta name="twitter:description" content="Steps, water, workouts, weight, Jain and vegetarian meal plans, a daily Fitness Score and personal trainer support.">
+<meta name="twitter:image" content="og-image.jpg">
+<meta name="twitter:image:alt" content="MiyeeFit Pro Fitness Dashboard">
 <script>
   (function () {
     try {
@@ -128,6 +162,7 @@
       <div id="sideSyncText" class="mt-1 space-y-0.5 text-xs muted">Checking cloud…</div>
       <div class="mt-3 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400"><i class="fa-solid fa-shield-halved text-emerald-500"></i> 100% Client-side privacy</div>
       <div class="mt-1 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400"><i class="fa-solid fa-seedling text-emerald-500"></i> Pure Vegetarian database</div>
+      <button id="installBtn" class="btn btn-primary btn-sm mt-3 hidden w-full" onclick="installApp()"><i class="fa-solid fa-download"></i>Install app</button>
     </div>
   </aside>
 
@@ -964,7 +999,15 @@ function toggleTheme() {
 
 function renderBanner() {
   const empty = Object.keys(state.logs).length === 0 && !isTrainer();
-  $('demoBanner').innerHTML = empty && !state.settings.demoDismissed ? `
+  const showInstall = canOfferInstall() && !state.settings.installDismissed;
+  const installHtml = showInstall ? `
+    <div class="fade-in mb-4 flex items-center gap-3 rounded-2xl border border-amber-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-ink">
+      <img src="icons/icon-192.png" alt="" class="h-10 w-10 rounded-xl">
+      <div class="min-w-0 flex-1"><div class="text-sm font-bold">Install MiyeeFit Pro</div><div class="truncate text-xs muted">${isIOS() ? 'Add it to your Home Screen for a full-screen app.' : 'Open it like an app, even offline.'}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="installApp()">${isIOS() ? 'How to' : 'Install'}</button>
+      <button class="btn btn-ghost btn-sm !px-2" onclick="state.settings.installDismissed=true;save({skipSync:true});renderBanner()" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
+    </div>` : '';
+  $('demoBanner').innerHTML = installHtml + (empty && !state.settings.demoDismissed ? `
     <div class="fade-in mb-5 overflow-hidden rounded-2xl grad-amber p-[1px] shadow-lg shadow-amber-500/20">
       <div class="flex flex-col gap-4 rounded-2xl bg-white/95 p-4 dark:bg-ink/95 sm:flex-row sm:items-center sm:p-5">
         <div class="grad-amber flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white"><i class="fa-solid fa-wand-magic-sparkles text-xl"></i></div>
@@ -977,7 +1020,7 @@ function renderBanner() {
           <button class="btn btn-ghost" onclick="state.settings.demoDismissed=true;save({skipSync:true});renderBanner()" title="Start fresh">Start fresh</button>
         </div>
       </div>
-    </div>` : '';
+    </div>` : '');
 }
 
 /* =====================================================================
@@ -2314,6 +2357,8 @@ function renderVault() {
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
       <div id="cloudCard" class="card card-pad">${cloudCardHtml()}</div>
 
+      <div id="installCard" class="card card-pad" data-tour="install">${installCardHtml()}</div>
+
       <div class="card card-pad">
         <div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-database mr-1 text-amber-500"></i>Local Storage Engine</div><span class="pill pill-green"><i class="fa-solid fa-circle"></i>Auto-saving</span></div>
         <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -3019,6 +3064,7 @@ function renderGuide() {
     sec('fa-bowl-food', 'Diet suggestions & Jain option', ['The Dashboard suggests a realistic next meal that fits the calories and protein you have left.', 'Set <b>Diet preference</b> to Jain in Profile to see only Jain-friendly food (no onion, garlic or root vegetables) in suggestions and plans.', 'In <b>Veg Diet Planner</b>, choose a plan, pick your calorie level, swap meals you do not like, and add a meal or the whole day to your log.', 'The cheat sheet ranks the best vegetarian protein and fibre sources per 100 kcal.']),
     sec('fa-wand-magic-sparkles', 'Score & Scope of Improvement', ['Your Daily Fitness Score (0 to 100) appears in the header.', 'Open <b>Scope of Improvement</b> to see red, amber and green audits with exact fixes.', 'Short on protein? Tap a suggested food to add it instantly.', 'Use the 7-day table and score trend to spot patterns.']),
     sec('fa-user-tie', 'Working with your trainer', ['Choose a trainer in <b>Profile</b> or <b>My Coach</b>. If none are listed yet, the list stays empty.', 'Your trainer sees your logged progress and can set your steps, cardio, water, calories and protein.', 'Targets set by your coach show "Set by coach" and are locked; anything they leave blank you set yourself in Profile.', 'Tick off exercises in <b>My Coach</b> each day; your coach sees what you completed.', 'Read your coach\'s instructions and message them from My Coach. You can change or remove your coach any time.']),
+    sec('fa-download', 'Install on your phone or laptop', ['Chrome or Edge on a laptop: click the install icon in the address bar, or use the <b>Install app</b> button in the sidebar.', 'Android: open the browser menu and tap <b>Install app</b> or <b>Add to Home screen</b>.', 'iPhone or iPad: in Safari tap <b>Share</b>, then <b>Add to Home Screen</b>.', 'The installed app opens in its own window, works offline and keeps your sign-in and data.']),
     sec('fa-cloud', 'Sync, backups & privacy', ['When signed in, every change saves on this device and to your cloud account automatically.', 'Sign in on another device with the same email to get your data there.', 'Export a JSON backup or CSV report from <b>Data Vault</b> at any time.', 'Passwords cannot be recovered, so keep a backup and remember your password.'])
   ];
   const coachSecs = [
@@ -3032,10 +3078,58 @@ function renderGuide() {
       <div class="text-xs font-bold uppercase tracking-widest opacity-80">User Guide</div>
       <h1 class="mt-1 text-3xl font-extrabold">How to use MiyeeFit Pro${trainer ? ' as a coach' : ''}</h1>
       <p class="mt-2 max-w-xl text-white/90">${trainer ? 'Follow your clients, set their targets and workouts, and keep them motivated.' : 'Track food, steps, water, workouts and weight, get realistic vegetarian or Jain diet suggestions, and work with a trainer.'}</p>
-      <button class="btn mt-4 bg-white font-bold text-amber-700 hover:bg-amber-50" onclick="startTour()"><i class="fa-solid fa-play"></i>Start interactive tour</button>
+      <div class="mt-4 flex flex-wrap gap-2"><button class="btn bg-white font-bold text-amber-700 hover:bg-amber-50" onclick="startTour()"><i class="fa-solid fa-play"></i>Start interactive tour</button>${isStandalone() ? '' : '<button class="btn border border-white/60 font-bold text-white hover:bg-white/10" onclick="installApp()"><i class="fa-solid fa-download"></i>Install the app</button>'}</div>
     </div>
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-tour="${trainer ? 'trainer-guide' : 'guide'}">${(trainer ? coachSecs : member).join('')}</div>
   </div>`;
+}
+
+/* ---------- Install as an app (PWA) ---------- */
+let deferredInstall = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const canOfferInstall = () => /^https?:$/.test(location.protocol) && !isStandalone() && (!!deferredInstall || isIOS());
+function renderInstallUi() {
+  const b = $('installBtn'); if (b) b.classList.toggle('hidden', isStandalone() || !/^https?:$/.test(location.protocol));
+  renderBanner();
+  if (ui.view === 'vault' && $('installCard')) $('installCard').innerHTML = installCardHtml();
+}
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; renderInstallUi(); });
+window.addEventListener('appinstalled', () => { deferredInstall = null; toast('MiyeeFit Pro is installed. Open it from your home screen or app list.'); renderInstallUi(); });
+async function installApp() {
+  if (deferredInstall) {
+    deferredInstall.prompt();
+    try { await deferredInstall.userChoice; } catch (e) { /* ignore */ }
+    deferredInstall = null; renderInstallUi();
+    return;
+  }
+  showInstallHelp();
+}
+function showInstallHelp() {
+  const ua = navigator.userAgent;
+  const platform = isIOS() ? 'ios' : /android/i.test(ua) ? (/samsungbrowser/i.test(ua) ? 'samsung' : /firefox/i.test(ua) ? 'firefox' : 'android') : /edg\//i.test(ua) ? 'edge' : /safari/i.test(ua) && !/chrome/i.test(ua) ? 'mac' : 'chrome';
+  const steps = {
+    ios: ['iPhone / iPad (Safari)', ['Tap the <b>Share</b> button (square with an arrow).', 'Scroll and tap <b>Add to Home Screen</b>.', 'Tap <b>Add</b>. MiyeeFit opens full screen from your Home Screen.']],
+    android: ['Android (Chrome)', ['Tap the <b>⋮</b> menu at the top right.', 'Tap <b>Install app</b> (or <b>Add to Home screen</b>).', 'Tap <b>Install</b>.']],
+    samsung: ['Samsung Internet', ['Tap the <b>☰</b> menu.', 'Tap <b>Add page to</b>, then <b>Home screen</b>.', 'Tap <b>Add</b>.']],
+    firefox: ['Firefox for Android', ['Tap the <b>⋮</b> menu.', 'Tap <b>Install</b> (or <b>Add to Home screen</b>).']],
+    chrome: ['Chrome on Windows, Mac, Linux or ChromeOS', ['Click the <b>install icon</b> at the right end of the address bar.', 'Or open the <b>⋮</b> menu, then <b>Cast, save and share</b>, then <b>Install page as app</b>.', 'Click <b>Install</b>. MiyeeFit gets its own window and a shortcut in your apps.']],
+    edge: ['Microsoft Edge', ['Click the <b>App available</b> icon in the address bar.', 'Or open the <b>⋯</b> menu, then <b>Apps</b>, then <b>Install this site as an app</b>.', 'Click <b>Install</b>.']],
+    mac: ['Safari on Mac', ['Open the <b>File</b> menu (or the Share button).', 'Choose <b>Add to Dock</b>.', 'Click <b>Add</b>.']]
+  };
+  const order = [platform, ...Object.keys(steps).filter((k) => k !== platform)];
+  openModal('<i class="fa-solid fa-download text-amber-500"></i> Install MiyeeFit Pro', `
+    <p class="text-sm muted">Installing gives you an app icon, a full-screen window and offline access. Your data and sign-in stay the same.</p>
+    <div class="mt-4 space-y-3">${order.map((k, i) => `<div class="rounded-xl border ${i === 0 ? 'border-amber-400 bg-amber-50 dark:bg-amber-400/10' : 'border-amber-100 dark:border-white/5'} p-3"><div class="text-sm font-bold">${steps[k][0]}${i === 0 ? ' <span class="pill pill-amber">Your browser</span>' : ''}</div><ol class="mt-1 list-decimal space-y-0.5 pl-5 text-sm muted">${steps[k][1].map((x) => `<li>${x}</li>`).join('')}</ol></div>`).join('')}</div>`);
+}
+function installCardHtml() {
+  if (isStandalone()) return '<div class="h-title"><i class="fa-solid fa-mobile-screen mr-1 text-amber-500"></i>App installed</div><p class="mt-2 text-sm muted">You are using the installed app. It works offline and opens from your home screen or app list.</p>';
+  return `<div class="h-title"><i class="fa-solid fa-download mr-1 text-amber-500"></i>Install the app</div>
+    <p class="mt-2 text-sm muted">Install MiyeeFit Pro on your phone, tablet or laptop from Chrome, Edge, Safari, Samsung Internet or Firefox. You get an app icon, a full-screen window and offline access.</p>
+    <div class="mt-3 flex flex-wrap gap-2"><button class="btn btn-primary" onclick="installApp()"><i class="fa-solid fa-download"></i>${deferredInstall ? 'Install now' : 'How to install'}</button>${deferredInstall ? '<button class="btn btn-soft" onclick="showInstallHelp()">Other devices</button>' : ''}</div>`;
+}
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('Service worker registration failed', e)); });
 }
 
 /* ---------- Boot ---------- */
@@ -3070,6 +3164,7 @@ setInterval(() => {
   if (!localStorage.getItem(STORAGE_KEY)) save({ skipSync: true });
   if (typeof Chart === 'undefined') console.warn('Chart.js failed to load. Charts are disabled; all other features work offline.');
   renderAll();
+  renderInstallUi();
   checkCloud().then((available) => {
     renderAccountBtn(); renderSyncIndicator();
     if (ui.view === 'vault' && $('cloudCard')) $('cloudCard').innerHTML = cloudCardHtml();
