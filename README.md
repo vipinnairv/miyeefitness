@@ -5,7 +5,7 @@
 The whole app is a single `index.html` (Tailwind CSS, Chart.js and Font Awesome from CDN). A small Cloudflare Worker serves it and adds **user accounts with cloud-saved data**.
 
 ## Modules
-- **Executive Dashboard**: step, water, calorie-balance and weight KPI cards; weight trend, intake vs burn, and macro charts.
+- **Fitness Dashboard**: step, water, calorie-balance and weight KPI cards; weight trend, intake vs burn, and macro charts.
 - **Daily Tracker**: 68-item pure-veg food database (Jain and Low-GI tags), custom veg foods, MET-based cardio logger, biometric check-in.
 - **Scope of Improvement**: Daily Fitness Score (0–100) from 7 audits, each with actionable fixes.
 - **Veg Diet Planner**: 4 templates scaled to your calorie target, meal swaps, 1-click apply, protein/fiber cheat sheet.
