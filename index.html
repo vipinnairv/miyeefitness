@@ -336,25 +336,26 @@ const mealName = (id) => (MEALS.find((m) => m.id === id) || { name: id }).name;
 
 /* ---------- MET-based Activity Library (Light / Moderate / Vigorous) ---------- */
 const ACTIVITIES = {
-  brisk_walk: { name: 'Brisk Walking', icon: 'fa-person-walking', met: [3.5, 4.3, 5.0] },
-  treadmill: { name: 'Treadmill Running', icon: 'fa-person-running', met: [7.0, 9.0, 11.0] },
-  outdoor_run: { name: 'Outdoor Running', icon: 'fa-person-running', met: [8.0, 9.8, 11.8] },
+  brisk_walk: { name: 'Brisk Walking', icon: 'fa-person-walking', met: [3.5, 4.3, 5.0], cadence: 110 },
+  treadmill: { name: 'Treadmill Running', icon: 'fa-person-running', met: [7.0, 9.0, 11.0], cadence: 155 },
+  outdoor_run: { name: 'Outdoor Running', icon: 'fa-person-running', met: [8.0, 9.8, 11.8], cadence: 160 },
   cycling: { name: 'Cycling (Outdoor)', icon: 'fa-person-biking', met: [5.8, 8.0, 10.0] },
-  stationary_bike: { name: 'Stationary Bike', icon: 'fa-person-biking', met: [4.8, 6.8, 8.8] },
+  stationary_bike: { name: 'Stationary Bike', icon: 'fa-person-biking', met: [3.5, 6.8, 8.8] },
   hiit: { name: 'HIIT', icon: 'fa-bolt', met: [6.0, 8.0, 10.5] },
   elliptical: { name: 'Elliptical', icon: 'fa-person-skiing-nordic', met: [4.6, 5.0, 6.5] },
   skipping: { name: 'Skipping / Jump Rope', icon: 'fa-arrows-up-down', met: [8.8, 11.8, 12.3] },
-  yoga: { name: 'Surya Namaskar / Power Yoga', icon: 'fa-spa', met: [3.0, 4.0, 5.5] },
+  yoga: { name: 'Surya Namaskar / Power Yoga', icon: 'fa-spa', met: [2.5, 4.0, 5.5] },
   swimming: { name: 'Swimming', icon: 'fa-person-swimming', met: [5.8, 7.0, 9.8] },
   strength: { name: 'Strength Training', icon: 'fa-dumbbell', met: [3.5, 5.0, 6.0] },
-  stairs: { name: 'Stair Climbing', icon: 'fa-stairs', met: [4.0, 6.5, 8.8] }
+  stairs: { name: 'Stair Climbing', icon: 'fa-stairs', met: [4.0, 6.5, 8.8], cadence: 90 }
 };
 const INTENSITIES = ['Light', 'Moderate', 'Vigorous'];
-const metKcal = (type, intensity, minutes, weight) => {
-  const a = ACTIVITIES[type]; if (!a) return 0;
-  const met = a.met[clamp(intensity, 0, 2)];
-  return met * 3.5 * weight / 200 * minutes;
-};
+// Net (active) calories, Compendium of Physical Activities 2024: (MET - 1) excludes the resting
+// energy that BMR already counts for the whole day.
+const metOf = (type, intensity) => { const a = ACTIVITIES[type]; return a ? a.met[clamp(intensity, 0, 2)] : 0; };
+const metKcal = (type, intensity, minutes, weight) => Math.max(0, metOf(type, intensity) - 1) * 3.5 * weight / 200 * minutes;
+// WHO 2020: moderate (3 to <6 MET) counts once, vigorous (>=6 MET) counts double, below 3 MET is not counted.
+const mvpaFactor = (met) => (met >= 6 ? 2 : met >= 3 ? 1 : 0);
 
 const LIFESTYLES = {
   sedentary: { label: 'Sedentary (Desk Job)', factor: 1.2 },
@@ -432,7 +433,7 @@ function defaultProfile() {
   return {
     name: 'Miyee Athlete', age: 32, gender: 'male', height: 172, lifestyle: 'sedentary', dietType: 'veg',
     startWeight: 86, startDate: todayStr(), currentWeight: 86, targetWeight: 74, weeklyRate: 0.5,
-    stepGoal: 10000, waterAuto: true, waterGoal: 3000, cardioGoal: 30,
+    stepGoal: 10000, waterAuto: true, waterGoal: 3000, cardioGoal: 30, trackFood: true,
     customTargets: false, customCalories: 1700, customProtein: 110, customCarbs: 190, customFat: 50
   };
 }
@@ -546,7 +547,9 @@ function latestWeightEntry(upTo) {
 function weightAt(date) { const e = latestWeightEntry(date); return e ? e.weight : (state.profile.currentWeight || state.profile.startWeight || 70); }
 function bmrFor(w) { const p = state.profile; return 10 * w + 6.25 * p.height - 5 * p.age + (p.gender === 'female' ? -161 : 5); }
 function strideCm() { return state.profile.height * (state.profile.gender === 'female' ? 0.413 : 0.415); }
-const stepKcal = (steps, w) => steps * w * 0.0005;
+// ACSM walking equation: net cost of level walking is about 0.5 kcal per kg per km.
+const stepKcal = (steps, w) => steps * strideCm() / 100000 * 0.5 * w;
+const sessionKcal = (c, w) => (c.manual ? c.kcal : metKcal(c.type, c.intensity, c.dur, w));
 const minCalories = () => state.profile.gender === 'female' ? 1200 : 1500;
 
 function targets(ownOnly = false) {
@@ -568,7 +571,7 @@ function targets(ownOnly = false) {
   if (ct.calories) { kcal = ct.calories; fat = kcal * 0.27 / 9; carbs = Math.max(50, (kcal - protein * 4 - fat * 9) / 4); }
   if (ct.protein) { protein = ct.protein; pMin = ct.protein; pMax = Math.max(proteinMax, ct.protein); carbs = Math.max(50, (kcal - protein * 4 - fat * 9) / 4); }
   const fiber = Math.max(25, kcal / 1000 * 14);
-  const water = ct.water || (p.waterAuto ? Math.round(w * 35 / 250) * 250 : p.waterGoal);
+  const water = ct.water || (p.waterAuto ? clamp(Math.round(w * 30 / 250) * 250, 2000, 4000) : p.waterGoal);
   const effectiveDeficit = tdee - kcal;
   const src = { steps: ct.steps ? 'coach' : 'you', cardio: ct.cardio ? 'coach' : 'you', water: ct.water ? 'coach' : 'you', calories: ct.calories ? 'coach' : 'you', protein: ct.protein ? 'coach' : 'you' };
   return { bmr, tdee, plannedDeficit, effectiveDeficit, kcal, floored: floored && !ct.calories, protein, proteinMin: pMin, proteinMax: pMax, fat, carbs, fiber, water, steps: ct.steps || p.stepGoal, cardio: ct.cardio ?? p.cardioGoal, src };
@@ -590,13 +593,23 @@ function daySummary(date) {
   const intake = sum(l.foods, (f) => f.kcal * f.qty);
   const p = sum(l.foods, (f) => f.p * f.qty), c = sum(l.foods, (f) => f.c * f.qty), f = sum(l.foods, (x) => x.f * x.qty), fib = sum(l.foods, (x) => x.fib * x.qty);
   const sKcal = stepKcal(l.steps, w);
-  const cKcal = sum(l.cardio, (x) => x.kcal);
+  // A walk or run logged as cardio is usually also counted by the phone's step counter. Remove the
+  // calories of those overlapping steps from the session so the same movement is not counted twice.
+  let stepsLeft = l.steps, overlapSteps = 0, cKcal = 0, mvpaMin = 0;
+  l.cardio.forEach((x) => {
+    let k = sessionKcal(x, w);
+    const cad = (ACTIVITIES[x.type] || {}).cadence;
+    if (cad && stepsLeft > 0) { const ov = Math.min(stepsLeft, cad * x.dur); stepsLeft -= ov; overlapSteps += ov; k = Math.max(0, k - stepKcal(ov, w)); }
+    cKcal += k;
+    mvpaMin += x.dur * mvpaFactor(metOf(x.type, x.intensity));
+  });
   const cMin = sum(l.cardio, (x) => x.dur);
-  const burnt = bmr + sKcal + cKcal;
+  const tef = intake * 0.1; // thermic effect of food, about 10% of energy intake
+  const burnt = bmr + tef + sKcal + cKcal;
   let bmrSoFar = bmr;
   if (date === todayStr()) { const n = new Date(); bmrSoFar = bmr * ((n.getHours() * 60 + n.getMinutes()) / 1440); }
   return {
-    date, log: l, weight: w, bmr, bmrSoFar, intake, p, c, f, fib, stepKcal: sKcal, cardioKcal: cKcal, cardioMin: cMin, burnt,
+    date, log: l, weight: w, bmr, bmrSoFar, intake, p, c, f, fib, stepKcal: sKcal, cardioKcal: cKcal, cardioMin: cMin, mvpaMin, overlapSteps, tef, burnt,
     deficit: burnt - intake, steps: l.steps, water: l.water, distance: l.steps * strideCm() / 100000,
     hasFood: l.foods.length > 0, hasAny: l.foods.length > 0 || l.steps > 0 || l.water > 0 || l.cardio.length > 0
   };
@@ -629,8 +642,9 @@ function projection() {
   const p = state.profile;
   const remaining = Math.max(0, p.currentWeight - p.targetWeight);
   const tr = weightTrend(todayStr(), 14);
-  let perDay = tr.avgDeficit > 50 ? tr.avgDeficit / KCAL_PER_KG : 0;
-  const basis = perDay ? 'your 14-day average deficit' : 'your target weekly rate';
+  let perDay = 0, basis = 'your target weekly rate';
+  if (tr.points.length >= 3 && tr.span >= 7 && tr.weeklyChange < -0.05) { perDay = -tr.weeklyChange / 7; basis = 'your actual 14-day weight trend'; }
+  else if (p.trackFood !== false && tr.foodDays >= 5 && tr.avgDeficit > 50) { perDay = tr.avgDeficit / KCAL_PER_KG; basis = 'your 14-day average deficit'; }
   if (!perDay) perDay = p.weeklyRate / 7;
   const daysNeeded = remaining > 0 ? Math.ceil(remaining / perDay) : 0;
   const planDays = remaining > 0 ? Math.ceil(remaining / (p.weeklyRate / 7)) : 0;
@@ -655,14 +669,16 @@ function analyze(date) {
   const hour = now.getHours() + now.getMinutes() / 60;
   const audits = [];
   const pts = {};
-  const statusPts = { green: 1, amber: 0.6, red: 0.2, gray: 0 };
+  const statusPts = { green: 1, amber: 0.6, red: 0.2, gray: 0, off: 0 };
+  const foodOn = p.trackFood !== false;
 
   // 1. Calorie Deficit Audit
   {
     let st, head, det;
     const def = s.deficit;
     const dayOpen = isToday && hour < 20;
-    if (!s.hasFood) { st = 'gray'; head = 'No food logged yet'; det = `Log your meals to audit today's energy balance. Your target intake is ${fmt(t.kcal)} kcal against a TDEE of ~${fmt(t.tdee)} kcal.`; }
+    if (!foodOn) { st = 'off'; head = 'Food tracking is off'; det = `You told us you do not log food, so this check is skipped and your score is based on what you do track. Estimated burn today is ${fmt(s.burnt)} kcal; eating about ${fmt(t.kcal)} kcal would match your goal.`; }
+    else if (!s.hasFood) { st = 'gray'; head = 'No food logged yet'; det = `Log your meals to audit today's energy balance. Your target intake is ${fmt(t.kcal)} kcal against a TDEE of ~${fmt(t.tdee)} kcal.`; }
     else if (s.intake < 1200 && !dayOpen) { st = 'red'; head = `Under-eating: only ${fmt(s.intake)} kcal`; det = `Intake below 1,200 kcal risks muscle loss, low energy and metabolic slow-down. Add a protein-rich meal (e.g. dal + 2 roti + curd ≈ 450 kcal) to reach at least ${fmt(Math.max(1200, t.kcal - 200))} kcal.`; }
     else if (def < 0) { st = 'red'; head = `Calorie surplus of ${fmt(-def)} kcal`; det = `You consumed ${fmt(s.intake)} kcal but burned ${fmt(s.burnt)} kcal. Trim ~${fmt(-def + 400)} kcal tomorrow (swap rice for phulka, skip fried snacks) or add ${Math.ceil((-def + 300) / Math.max(1, metKcal('brisk_walk', 1, 1, s.weight)))} min of brisk walking.`; }
     else if (def < 300) { st = 'amber'; head = `Mild deficit: ${fmt(def)} kcal`; det = `Fat loss will be slow (~${r2(def * 7 / KCAL_PER_KG)} kg/week). The optimal window is 300–600 kcal. ${dayOpen ? 'Your day is still open, so keep dinner light.' : 'Add 2,000 steps or trim 150 kcal of carbs.'}`; }
@@ -680,7 +696,8 @@ function analyze(date) {
     let st, head, det;
     const min = t.proteinMin, max = t.proteinMax;
     const fixes = [];
-    if (s.p >= min) { st = 'green'; head = `Protein on target: ${r1(s.p)} g`; det = `You hit ${r1(s.p / p.targetWeight)} g/kg of target weight (goal 1.2–1.6 g/kg = ${Math.round(min)}–${Math.round(max)} g). Great for satiety and lean-mass retention.`; }
+    if (!foodOn) { st = 'off'; head = 'Food tracking is off'; det = `Aim for ${Math.round(min)}–${Math.round(max)} g of protein a day (1.2–1.6 g per kg of goal weight) from dal, paneer, curd, soya and sprouts.`; }
+    else if (s.p >= min) { st = 'green'; head = `Protein on target: ${r1(s.p)} g`; det = `You hit ${r1(s.p / p.targetWeight)} g/kg of target weight (goal 1.2–1.6 g/kg = ${Math.round(min)}–${Math.round(max)} g). Great for satiety and lean-mass retention.`; }
     else {
       const gap = min - s.p;
       st = s.p >= 0.7 * min ? 'amber' : 'red';
@@ -691,7 +708,7 @@ function analyze(date) {
       head = `${Math.round(gap)} g short on protein`;
       det = `You are ${Math.round(gap)}g short on protein ${isToday ? 'today' : 'for this day'} (${r1(s.p)} g of ${Math.round(min)} g minimum). Add ${a.f.serving} ${a.f.name} (+${r1(a.f.p)}g protein) or ${b.f.serving} ${b.f.name} (+${r1(b.f.p)}g protein).`;
     }
-    pts.protein = 20 * clamp(s.p / min, 0, 1);
+    pts.protein = foodOn ? 20 * clamp(s.p / min, 0, 1) : 0;
     audits.push({ key: 'protein', title: 'Pure Veg Protein Adequacy', icon: 'fa-seedling', color: 'var(--c-intake)', st, head, det, fixes,
       metric: `${r1(s.p)} / ${Math.round(min)}–${Math.round(max)} g`, pct: clamp(s.p / min, 0, 1) });
   }
@@ -731,27 +748,29 @@ function analyze(date) {
   {
     let st, head, det;
     const week = dateRange(date, 7).map(daySummary);
-    const weekMin = sum(week, (x) => x.cardioMin);
+    const weekMin = sum(week, (x) => x.mvpaMin);
     const weekKcal = sum(week, (x) => x.cardioKcal);
     const activeDays = week.filter((x) => x.cardioMin > 0).length;
     if (weekMin >= 300) { st = 'green'; head = `Elite volume: ${Math.round(weekMin)} min/week`; det = `Above the 300 min upper benchmark across ${activeDays} active days (${fmt(weekKcal)} kcal). Prioritise sleep and protein for recovery.`; }
-    else if (weekMin >= 150) { st = 'green'; head = `${Math.round(weekMin)} min this week`; det = `Within the WHO 150–300 min/week benchmark across ${activeDays} active days, burning ${fmt(weekKcal)} kcal.`; }
+    else if (weekMin >= 150) { st = 'green'; head = `${Math.round(weekMin)} min this week`; det = `Within the WHO 150–300 min/week benchmark across ${activeDays} active days (moderate-equivalent minutes; vigorous minutes count double), burning ${fmt(weekKcal)} active kcal.`; }
     else if (weekMin >= 75) { st = 'amber'; head = `${Math.round(150 - weekMin)} min short of 150`; det = `${Math.round(weekMin)} min logged over the last 7 days. Add ${Math.ceil((150 - weekMin) / 30)} × 30-min sessions (brisk walk, cycling or Surya Namaskar).`; }
     else { st = 'red'; head = `Low activity: ${Math.round(weekMin)} min/week`; det = `Aim for at least 150 minutes of moderate cardio weekly. Start with ${Math.max(20, t.cardio)} min/day on 5 days.`; }
     pts.cardio = 5 * clamp(s.cardioMin / Math.max(1, t.cardio), 0, 1) + 5 * clamp(weekMin / 150, 0, 1);
-    audits.push({ key: 'cardio', title: 'Cardio & Active Burn Consistency', icon: 'fa-heart-pulse', color: 'var(--c-burn)', st, head, det, metric: `${Math.round(weekMin)} / 150–300 min`, pct: clamp(weekMin / 150, 0, 1) });
+    audits.push({ key: 'cardio', title: 'Cardio & Active Burn Consistency', icon: 'fa-heart-pulse', color: 'var(--c-burn)', st, head, det, metric: `${Math.round(weekMin)} / 150–300 min (moderate-eq.)`, pct: clamp(weekMin / 150, 0, 1) });
   }
 
   // 6. Weight Plateau & Rate of Loss Alert
   {
     let st, head, det;
     const tr = weightTrend(date, 14);
-    const actual = tr.weeklyChange, expected = tr.expectedWeekly;
+    const useDeficit = foodOn && tr.foodDays >= 5;
+    const actual = tr.weeklyChange, expected = useDeficit ? tr.expectedWeekly : -p.weeklyRate;
+    const model = useDeficit ? 'the deficit model' : 'your target pace';
     if (tr.points.length < 3 || tr.span < 4) { st = 'gray'; head = 'Need more weigh-ins'; det = `Log your morning weight at least 3 times across 5+ days to unlock plateau detection (${tr.points.length} weigh-in(s) in the last 14 days).`; }
-    else if (actual > 0.1) { st = 'red'; head = `Gaining ${r2(actual)} kg/week`; det = `Your trend is upward while the deficit model expects ${r2(expected)} kg/week. Re-check portion sizes, oils/ghee and weekend intake.`; }
-    else if (expected < -0.2 && actual > expected * 0.3) { st = 'red'; head = 'Weight plateau detected'; det = `Your logged deficit predicts ${r2(expected)} kg/week but the scale shows ${r2(actual)} kg/week. Likely causes: water retention, under-logged food, or adaptive NEAT. Add a refeed day at maintenance, raise steps by 2,000 and audit hidden oils.`; }
+    else if (actual > 0.1) { st = 'red'; head = `Gaining ${r2(actual)} kg/week`; det = `Your trend is upward while ${model} expects ${r2(expected)} kg/week. Re-check portion sizes, oils/ghee and weekend intake.`; }
+    else if (expected < -0.2 && actual > expected * 0.3) { st = useDeficit ? 'red' : 'amber'; head = useDeficit ? 'Weight plateau detected' : 'Slower than your target pace'; det = useDeficit ? `Your logged deficit predicts ${r2(expected)} kg/week but the scale shows ${r2(actual)} kg/week. Likely causes: water retention, under-logged food, or adaptive NEAT. Add a refeed day at maintenance, raise steps by 2,000 and audit hidden oils.` : `The scale shows ${r2(actual)} kg/week against your target of ${r2(expected)} kg/week. Add 1,500 to 2,000 daily steps or trim portions slightly; day-to-day water shifts are normal, so judge it over 2 to 3 weeks.`; }
     else if (-actual > Math.max(1.0, s.weight * 0.01)) { st = 'amber'; head = `Very fast loss: ${r2(-actual)} kg/week`; det = `Losing over 1% body weight per week can cost muscle. Increase intake by 150–250 kcal and keep protein at ≥${Math.round(t.proteinMin)} g.`; }
-    else { st = 'green'; head = `On track: ${r2(-actual)} kg/week loss`; det = `Actual trend (${r2(actual)} kg/week) aligns with the deficit model (${r2(expected)} kg/week). Target pace is ${p.weeklyRate} kg/week.`; }
+    else { st = 'green'; head = `On track: ${r2(-actual)} kg/week loss`; det = `Actual trend (${r2(actual)} kg/week) aligns with ${model} (${r2(expected)} kg/week). Safe pace is 0.5 to 1% of body weight per week.`; }
     pts.weight = (getLog(date).bio.weight ? 4 : 0) + ({ green: 6, amber: 3, red: 0, gray: 2 })[st];
     audits.push({ key: 'weight', title: 'Weight Plateau & Rate of Loss', icon: 'fa-weight-scale', color: 'var(--c-weight)', st, head, det, metric: tr.points.length >= 2 ? `${r2(actual)} vs ${r2(expected)} kg/wk` : `${tr.points.length} weigh-ins`, pct: tr.points.length >= 3 ? clamp(1 - Math.abs(actual - expected) / Math.max(0.3, Math.abs(expected) || 0.5), 0, 1) : 0 });
   }
@@ -761,15 +780,17 @@ function analyze(date) {
     const b = getLog(date).bio;
     let st, head, det;
     if (b.sleep === undefined && b.energy === undefined) { st = 'gray'; head = 'Recovery not logged'; det = 'Log sleep hours and energy level in the Daily Tracker check-in. 7–9 hours of sleep improves appetite regulation and fat loss.'; }
-    else if ((b.sleep ?? 7) >= 7 && (b.sleep ?? 7) <= 9.5 && (b.energy ?? 4) >= 3) { st = 'green'; head = `Well recovered${b.sleep !== undefined ? ` • ${b.sleep} h sleep` : ''}`; det = 'Good sleep and energy support hormones (leptin/ghrelin) that drive hunger control.'; }
+    else if ((b.sleep ?? 7) >= 7 && (b.sleep ?? 7) <= 9 && (b.energy ?? 4) >= 3) { st = 'green'; head = `Well recovered${b.sleep !== undefined ? ` • ${b.sleep} h sleep` : ''}`; det = 'Good sleep and energy support hormones (leptin/ghrelin) that drive hunger control.'; }
     else if ((b.sleep ?? 7) < 6 || (b.energy ?? 3) <= 2) { st = 'red'; head = 'Poor recovery'; det = `Sleep ${b.sleep ?? '-'} h, energy ${b.energy ?? '-'}/5. Short sleep raises hunger by up to 20%. Prioritise a 7-hour window and keep today's training light.`; }
-    else { st = 'amber'; head = 'Recovery could improve'; det = `Sleep ${b.sleep ?? '-'} h, energy ${b.energy ?? '-'}/5. Target 7–9 hours and limit screens 45 min before bed.`; }
-    pts.recovery = (b.sleep !== undefined ? (b.sleep >= 7 && b.sleep <= 9.5 ? 3 : b.sleep >= 6 ? 2 : 1) : 0) + (b.energy !== undefined ? b.energy / 5 * 2 : 0);
+    else { st = 'amber'; head = 'Recovery could improve'; det = `Sleep ${b.sleep ?? '-'} h, energy ${b.energy ?? '-'}/5. Adults need 7–9 hours (AASM). Limit screens 45 min before bed.`; }
+    pts.recovery = (b.sleep !== undefined ? (b.sleep >= 7 && b.sleep <= 9 ? 3 : b.sleep >= 6 ? 2 : 1) : 0) + (b.energy !== undefined ? b.energy / 5 * 2 : 0);
     audits.push({ key: 'recovery', title: 'Sleep & Recovery', icon: 'fa-bed', color: '#6366F1', st, head, det, metric: `${b.sleep ?? '-'} h • ${b.energy ?? '-'}/5`, pct: b.sleep !== undefined ? clamp(b.sleep / 8, 0, 1) : 0 });
   }
 
-  const score = Math.round(clamp(sum(Object.values(pts)), 0, 100));
-  return { date, score, audits, pts, summary: s, targets: t };
+  // When food is not tracked, calories (25) and protein (20) are excluded and the rest is rescaled to 100.
+  const raw = sum(Object.values(pts));
+  const score = Math.round(clamp(foodOn ? raw : raw / 55 * 100, 0, 100));
+  return { date, score, audits, pts, summary: s, targets: t, foodOn };
 }
 
 function scoreGrade(score) {
@@ -896,8 +917,8 @@ function ring(pct, color, size = 120, stroke = 11, center = '') {
     <div class="absolute inset-0 flex flex-col items-center justify-center text-center leading-tight">${center}</div></div>`;
 }
 const bar = (pct, color, h = 'h-2') => `<div class="${h} w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-white/5"><div class="h-full rounded-full" style="width:${clamp(pct, 0, 1) * 100}%;background:${color};transition:width .7s ease"></div></div>`;
-const stPill = (st) => ({ green: '<span class="pill pill-green"><i class="fa-solid fa-circle-check"></i>On Track</span>', amber: '<span class="pill pill-amber"><i class="fa-solid fa-circle-half-stroke"></i>Improve</span>', red: '<span class="pill pill-red"><i class="fa-solid fa-triangle-exclamation"></i>Action</span>', gray: '<span class="pill pill-gray"><i class="fa-regular fa-circle"></i>No Data</span>' })[st];
-const stBorder = (st) => ({ green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-rose-500', gray: 'border-l-zinc-300 dark:border-l-zinc-600' })[st];
+const stPill = (st) => ({ green: '<span class="pill pill-green"><i class="fa-solid fa-circle-check"></i>On Track</span>', amber: '<span class="pill pill-amber"><i class="fa-solid fa-circle-half-stroke"></i>Improve</span>', red: '<span class="pill pill-red"><i class="fa-solid fa-triangle-exclamation"></i>Action</span>', gray: '<span class="pill pill-gray"><i class="fa-regular fa-circle"></i>No Data</span>', off: '<span class="pill pill-gray"><i class="fa-solid fa-ban"></i>Not tracked</span>' })[st];
+const stBorder = (st) => ({ green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-rose-500', gray: 'border-l-zinc-300 dark:border-l-zinc-600', off: 'border-l-zinc-300 dark:border-l-zinc-600' })[st];
 
 /* ---------- Header ---------- */
 function renderHeader() {
@@ -981,6 +1002,7 @@ const baseScales = (yTitle) => { const cc = chartColors(); return {
 }; };
 
 function renderDashboard() {
+  const foodOn = state.profile.trackFood !== false;
   const t = targets();
   const s = daySummary(ui.date);
   const a = analyze(ui.date);
@@ -1048,17 +1070,19 @@ function renderDashboard() {
 
       <!-- Calorie balance -->
       <div class="card card-pad flex flex-col">
-        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15"><i class="fa-solid fa-fire-burner"></i></span>Calorie Balance</div><span class="pill ${netState[0]}">${netState[1]}</span></div>
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15"><i class="fa-solid fa-fire-burner"></i></span>${foodOn ? 'Calorie Balance' : 'Calories Burnt'}</div>${foodOn ? `<span class="pill ${netState[0]}">${netState[1]}</span>` : '<span class="pill pill-gray">Food not tracked</span>'}</div>
         <div class="my-4 flex items-center gap-4">
-          ${ring(s.intake / t.kcal, 'var(--c-intake)', 112, 11, `<div class="text-xl font-extrabold">${fmt(s.intake)}</div><div class="text-[10px] font-semibold uppercase muted">of ${fmt(t.kcal)}</div>`)}
+          ${foodOn ? ring(s.intake / t.kcal, 'var(--c-intake)', 112, 11, `<div class="text-xl font-extrabold">${fmt(s.intake)}</div><div class="text-[10px] font-semibold uppercase muted">of ${fmt(t.kcal)}</div>`) : ring((s.stepKcal + s.cardioKcal) / 600, 'var(--c-burn)', 112, 11, `<div class="text-xl font-extrabold">${fmt(s.stepKcal + s.cardioKcal)}</div><div class="text-[10px] font-semibold uppercase muted">active kcal</div>`)}
           <div class="flex-1 space-y-1.5 text-xs">
-            <div class="flex justify-between"><span class="muted">BMR${isToday ? ' (daily)' : ''}</span><b>${fmt(s.bmr)}</b></div>
-            <div class="flex justify-between"><span class="muted">Steps burn</span><b>${fmt(s.stepKcal)}</b></div>
-            <div class="flex justify-between"><span class="muted">Cardio burn</span><b>${fmt(s.cardioKcal)}</b></div>
+            <div class="flex justify-between" title="Mifflin-St Jeor resting energy for the whole day"><span class="muted">BMR${isToday ? ' (daily)' : ''}</span><b>${fmt(s.bmr)}</b></div>
+            ${foodOn ? `<div class="flex justify-between" title="Thermic effect of food, about 10% of intake"><span class="muted">Digestion</span><b>${fmt(s.tef)}</b></div>` : ''}
+            <div class="flex justify-between" title="ACSM: 0.5 kcal per kg per km walked"><span class="muted">Steps burn</span><b>${fmt(s.stepKcal)}</b></div>
+            <div class="flex justify-between" title="Net MET calories; steps already counted by your step counter are removed"><span class="muted">Exercise burn</span><b>${fmt(s.cardioKcal)}</b></div>
             <div class="flex justify-between border-t border-amber-100 pt-1.5 dark:border-white/5"><span class="font-semibold text-rose-500">Total burnt</span><b class="text-rose-500">${fmt(s.burnt)}</b></div>
           </div>
         </div>
-        <div class="mt-auto rounded-xl ${net <= 0 ? 'bg-emerald-50 dark:bg-emerald-400/10' : 'bg-rose-50 dark:bg-rose-400/10'} p-3">
+        ${!foodOn ? `<div class="mt-auto rounded-xl bg-amber-50 p-3 text-[11px] muted dark:bg-white/[.03]">Food tracking is off, so no balance is shown. Eating about <b>${fmt(t.kcal)} kcal</b> a day matches your ${p.weeklyRate} kg/week goal. Turn food tracking on in Profile any time.</div>` : ''}
+        <div class="mt-auto rounded-xl ${foodOn ? '' : 'hidden'} ${net <= 0 ? 'bg-emerald-50 dark:bg-emerald-400/10' : 'bg-rose-50 dark:bg-rose-400/10'} p-3">
           <div class="flex items-center justify-between"><span class="text-xs font-semibold muted">Net ${net <= 0 ? 'Deficit' : 'Surplus'}</span><span class="text-lg font-extrabold ${net <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}">${net <= 0 ? '−' : '+'}${fmt(Math.abs(net))} kcal</span></div>
           <div class="text-[11px] muted">${s.hasFood ? `≈ ${r2(Math.abs(net) / KCAL_PER_KG * 1000)} g fat ${net <= 0 ? 'burned' : 'stored'} • Target deficit ${fmt(t.effectiveDeficit)} kcal` : 'Log meals to compute your real balance'}${isToday ? ` • BMR so far: ${fmt(s.bmrSoFar)}` : ''}</div>
         </div>
@@ -1121,7 +1145,7 @@ function renderDashboard() {
           <div><span class="pill ${g.cls}">${g.label}</span><div class="mt-1 text-xs muted">Daily Fitness Score blends deficit, protein, hydration, steps, cardio, weight trend &amp; recovery.</div></div>
         </div>
         <div class="mt-4 space-y-2">
-          ${a.audits.filter((x) => x.st !== 'green').sort((x, y) => ({ red: 0, amber: 1, gray: 2 })[x.st] - ({ red: 0, amber: 1, gray: 2 })[y.st]).slice(0, 4).map((x) => `
+          ${a.audits.filter((x) => x.st !== 'green' && x.st !== 'off').sort((x, y) => ({ red: 0, amber: 1, gray: 2 })[x.st] - ({ red: 0, amber: 1, gray: 2 })[y.st]).slice(0, 4).map((x) => `
             <div class="flex items-start gap-3 rounded-xl border-l-4 ${stBorder(x.st)} bg-amber-50/60 p-2.5 dark:bg-white/[.03]">
               <i class="fa-solid ${x.icon} mt-0.5" style="color:${x.color}"></i>
               <div class="min-w-0"><div class="text-sm font-bold">${esc(x.head)}</div><div class="text-xs muted">${esc(x.title)}</div></div>
@@ -1280,7 +1304,7 @@ function renderTracker() {
         <!-- Cardio -->
         <div class="card card-pad" data-tour="cardio">
           <div class="h-title"><i class="fa-solid fa-heart-pulse mr-1 text-rose-500"></i>Cardio &amp; Workout Logger</div>
-          <div class="text-xs muted">MET-based burn using your weight (${r1(s.weight)} kg)</div>
+          <div class="text-xs muted">Active calories (net of resting) from MET values for your weight (${r1(s.weight)} kg). Walks and runs your step counter already counted are not double-counted.</div>
           <div class="mt-3 space-y-3">
             <div><label class="label">Activity</label><select id="cdType" class="input" onchange="ui.cardioType=this.value;updateCardioPreview()">${Object.entries(ACTIVITIES).map(([k, a]) => `<option value="${k}" ${ui.cardioType === k ? 'selected' : ''}>${a.name}</option>`).join('')}</select></div>
             <div class="grid grid-cols-2 gap-2">
@@ -1296,7 +1320,7 @@ function renderTracker() {
           <div class="mt-4 space-y-2">${getLog(ui.date).cardio.map((c) => `
             <div class="flex items-center gap-3 rounded-xl bg-rose-50/70 p-2.5 dark:bg-rose-400/[.06]">
               <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-rose-500 dark:bg-white/5"><i class="fa-solid ${ACTIVITIES[c.type].icon}"></i></span>
-              <div class="min-w-0 flex-1"><div class="truncate text-sm font-bold">${ACTIVITIES[c.type].name}</div><div class="truncate text-[11px] muted">${c.dur} min • ${INTENSITIES[c.intensity]} • <b class="text-rose-500">${fmt(c.kcal)} kcal</b>${c.manual ? ' (manual)' : ''}${c.notes ? ' • ' + esc(c.notes) : ''}</div></div>
+              <div class="min-w-0 flex-1"><div class="truncate text-sm font-bold">${ACTIVITIES[c.type].name}</div><div class="truncate text-[11px] muted">${c.dur} min • ${INTENSITIES[c.intensity]} • <b class="text-rose-500">${fmt(sessionKcal(c, weightAt(ui.date)))} active kcal</b>${c.manual ? ' (manual)' : ''}${c.notes ? ' • ' + esc(c.notes) : ''}</div></div>
               <button class="btn btn-ghost btn-sm !px-1.5 text-rose-500" onclick="removeCardio('${c.id}')" aria-label="Remove session"><i class="fa-solid fa-trash-can"></i></button>
             </div>`).join('') || '<div class="rounded-xl border border-dashed border-amber-200 p-3 text-center text-xs muted dark:border-white/10">No sessions logged for this day</div>'}
           </div>
@@ -1427,7 +1451,7 @@ function updateCardioPreview() {
   const dur = num($('cdDur').value);
   const kcal = metKcal(ui.cardioType, ui.cardioIntensity, dur, weightAt(ui.date));
   el.textContent = dur > 0 ? `${fmt(kcal)} kcal` : '-';
-  el.title = `MET ${ACTIVITIES[ui.cardioType].met[ui.cardioIntensity]} × 3.5 × ${r1(weightAt(ui.date))} kg ÷ 200 × ${dur} min`;
+  el.title = `Active kcal = (MET ${ACTIVITIES[ui.cardioType].met[ui.cardioIntensity]} - 1) × 3.5 × ${r1(weightAt(ui.date))} kg ÷ 200 × ${dur} min`;
 }
 function addCardio() {
   const dur = num($('cdDur').value);
@@ -1469,7 +1493,7 @@ function renderInsights() {
   const rows = days.map((d) => ({ d, s: daySummary(d), sc: analyze(d).score }));
   const logged = rows.filter((r) => r.s.hasAny);
   const avg = (fn) => logged.length ? sum(logged, fn) / logged.length : 0;
-  const comp = [['Calorie deficit', a.pts.calorie, 25, '#10B981'], ['Protein', a.pts.protein, 20, '#8B5CF6'], ['Hydration', a.pts.water, 15, '#06B6D4'], ['Steps / NEAT', a.pts.steps, 15, '#F59E0B'], ['Cardio', a.pts.cardio, 10, '#F43F5E'], ['Weight trend', a.pts.weight, 10, '#7C3AED'], ['Recovery', a.pts.recovery, 5, '#6366F1']];
+  const comp = [...(a.foodOn ? [['Calorie deficit', a.pts.calorie, 25, '#10B981'], ['Protein', a.pts.protein, 20, '#8B5CF6']] : []), ['Hydration', a.pts.water, 15, '#06B6D4'], ['Steps / NEAT', a.pts.steps, 15, '#F59E0B'], ['Cardio', a.pts.cardio, 10, '#F43F5E'], ['Weight trend', a.pts.weight, 10, '#7C3AED'], ['Recovery', a.pts.recovery, 5, '#6366F1']];
   const actions = a.audits.filter((x) => x.st === 'red' || x.st === 'amber').sort((x, y) => (x.st === 'red' ? 0 : 1) - (y.st === 'red' ? 0 : 1));
 
   $('view-insights').innerHTML = `
@@ -1486,7 +1510,7 @@ function renderInsights() {
         <div class="mt-2 text-sm muted">Daily Fitness Score</div>
       </div>
       <div class="card card-pad">
-        <div class="h-title">Score Breakdown</div>
+        <div class="h-title">Score Breakdown</div>${a.foodOn ? '' : '<div class="mt-1 text-[11px] muted">Food is not tracked, so calories and protein are skipped and these 55 points are scaled to 100.</div>'}
         <div class="mt-3 space-y-2.5">${comp.map(([n, v, max, c]) => `<div><div class="flex justify-between text-xs"><span class="font-semibold">${n}</span><span class="muted">${r1(v)} / ${max}</span></div>${bar(v / max, c, 'h-2 mt-1')}</div>`).join('')}</div>
       </div>
       <div class="card card-pad">
@@ -1696,11 +1720,12 @@ function renderProfile() {
         </div>
         <div class="card card-pad">
           <div class="h-title mb-3"><i class="fa-solid fa-sliders mr-1 text-cyan-500"></i>Custom Goal Targets</div>
+          <label class="mb-4 flex items-start gap-3 rounded-xl border border-amber-100 p-3 text-sm dark:border-white/5"><span class="switch mt-0.5 ${p.trackFood !== false ? 'on' : ''}" role="switch" aria-checked="${p.trackFood !== false}" onclick="toggleProfileFlag('trackFood')"></span><span><b>I log my food</b><span class="block text-xs muted">Turn off if you don't track meals. Calories and protein are then left out of your score, which is calculated from steps, water, exercise, weight and sleep instead.</span></span></label>
           ${Object.keys(ct).some((k) => ct[k]) ? `<div class="mb-3 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800 dark:bg-amber-400/10 dark:text-amber-300"><i class="fa-solid fa-lock"></i> Fields marked "Set by coach" come from ${esc(coach.trainer ? coach.trainer.name : 'your coach')}. You set everything else yourself.</div>` : ''}
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3" data-tour="goals">
             ${ct.steps ? lockedField('Daily step goal', fmt(ct.steps)) : inp('stepGoal', 'Daily step goal', 'number', 'step="500"')}
             ${ct.water ? lockedField('Daily water goal (ml)', fmt(ct.water)) : `<div><label class="label">Daily water goal (ml)</label><input id="pf_waterGoal" data-field="waterGoal" type="number" step="250" class="input" value="${p.waterAuto ? targets().water : p.waterGoal}" ${p.waterAuto ? 'disabled' : ''} onchange="setProfile(this)">
-              <label class="mt-2 flex items-center gap-2 text-xs font-semibold"><span class="switch ${p.waterAuto ? 'on' : ''}" role="switch" aria-checked="${p.waterAuto}" onclick="toggleProfileFlag('waterAuto')"></span>Auto (35 ml/kg)</label></div>`}
+              <label class="mt-2 flex items-center gap-2 text-xs font-semibold"><span class="switch ${p.waterAuto ? 'on' : ''}" role="switch" aria-checked="${p.waterAuto}" onclick="toggleProfileFlag('waterAuto')"></span>Auto (30 ml/kg)</label></div>`}
             ${ct.cardio ? lockedField('Daily cardio (min)', ct.cardio) : inp('cardioGoal', 'Daily cardio (min)', 'number', 'step="5"')}
           </div>
           ${ct.calories || ct.protein ? `<div class="mt-3 grid grid-cols-2 gap-3">${ct.calories ? lockedField('Calories', fmt(ct.calories) + ' kcal') : ''}${ct.protein ? lockedField('Protein', ct.protein + ' g') : ''}</div>` : ''}
@@ -1731,6 +1756,16 @@ function trainerSelectHtml() {
   return `<select class="input" onchange="chooseTrainer(this.value)"><option value="" ${cur ? '' : 'selected'}>No trainer</option>${list.map((t) => `<option value="${t.id}" ${t.id === cur ? 'selected' : ''} ${!t.accepting && t.id !== cur ? 'disabled' : ''}>${esc(t.name)} • ${esc(t.specialization)}${!t.accepting && t.id !== cur ? ' (full)' : ''}</option>`).join('')}</select>`;
 }
 
+function waistInfo() {
+  const keys = Object.keys(state.logs).filter((k) => state.logs[k].bio && state.logs[k].bio.waist > 0).sort();
+  if (!keys.length) return null;
+  const date = keys[keys.length - 1], waist = state.logs[date].bio.waist, p = state.profile;
+  const whtr = waist / p.height;
+  const whtrCat = whtr < 0.4 ? ['Low', 'amber'] : whtr < 0.5 ? ['Healthy', 'green'] : whtr < 0.6 ? ['Increased risk', 'amber'] : ['High risk', 'red'];
+  const cut = p.gender === 'female' ? 80 : 90;
+  return { date, waist, whtr, whtrCat, cut, over: waist >= cut };
+}
+
 function renderProfileReadout() {
   const p = state.profile, t = targets(), b = bmiInfo(), pr = projection();
   const red = $('pfReduction'); if (red) red.textContent = `${r1(Math.max(0, p.currentWeight - p.targetWeight))} kg to lose`;
@@ -1747,11 +1782,12 @@ function renderProfileReadout() {
       <div class="card-pad space-y-4">
         <div>
           <div class="flex items-end justify-between"><div><div class="text-xs font-bold uppercase muted">Body Mass Index</div><div class="text-3xl font-extrabold">${r1(b.bmi)}</div></div>
-          <div class="space-y-1 text-right"><div class="text-[10px] font-bold uppercase muted">WHO <span class="pill pill-${b.who[1]}">${b.who[0]}</span></div><div class="text-[10px] font-bold uppercase muted">Asian/Indian <span class="pill pill-${b.asian[1]}">${b.asian[0]}</span></div></div></div>
+          <div class="space-y-1 text-right"><div class="text-[10px] font-bold uppercase muted">WHO <span class="pill pill-${b.who[1]}">${b.who[0]}</span></div><div class="text-[10px] font-bold uppercase muted">Asian-Indian <span class="pill pill-${b.asian[1]}">${b.asian[0]}</span></div></div></div>
           <div class="relative mt-3 h-2.5 rounded-full" style="background:linear-gradient(90deg,#38BDF8 0%,#10B981 22%,#10B981 32%,#F59E0B 40%,#F97316 60%,#F43F5E 100%)"><div class="absolute -top-1 h-4.5 w-1.5 rounded-full bg-zinc-900 ring-2 ring-white dark:bg-white dark:ring-zinc-900" style="left:calc(${bmiPct * 100}% - 3px);height:18px"></div></div>
           <div class="mt-1 flex justify-between text-[10px] muted"><span>15</span><span>18.5</span><span>23</span><span>25</span><span>30</span><span>40</span></div>
           <div class="mt-1 text-[11px] muted">At your target weight of ${p.targetWeight} kg your BMI would be <b>${r1(tbmi.bmi)}</b> (${tbmi.asian[0]}, Asian cut-offs).</div>
         </div>
+        ${(() => { const wi = waistInfo(); return wi ? `<div class="rounded-xl border border-amber-100 p-3 dark:border-white/5"><div class="flex items-center justify-between"><div><div class="text-[11px] font-bold uppercase muted">Waist-to-height ratio</div><div class="text-2xl font-extrabold">${wi.whtr.toFixed(2)}</div></div><span class="pill pill-${wi.whtrCat[1]}">${wi.whtrCat[0]}</span></div><div class="mt-1 text-[11px] muted">Waist ${wi.waist} cm on ${fmtDate(wi.date)}. Keep it under 0.5 (NICE). South Asian waist cut-off: ${wi.cut} cm for ${state.profile.gender === 'female' ? 'women' : 'men'} (IDF)${wi.over ? `, currently ${r1(wi.waist - wi.cut)} cm above` : ', currently below'}.</div></div>` : '<div class="rounded-xl border border-dashed border-amber-200 p-3 text-[11px] muted dark:border-white/10">Log your waist in the Daily Tracker check-in to see your waist-to-height ratio, a stronger health-risk marker than BMI.</div>'; })()}
         <div class="grid grid-cols-2 gap-2">
           <div class="stat-box"><div class="text-[11px] font-bold uppercase muted">BMR</div><div class="text-xl font-extrabold">${fmt(t.bmr)}</div><div class="text-[10px] muted">Mifflin-St Jeor • kcal/day</div></div>
           <div class="stat-box"><div class="text-[11px] font-bold uppercase muted">TDEE</div><div class="text-xl font-extrabold">${fmt(t.tdee)}</div><div class="text-[10px] muted">BMR × ${LIFESTYLES[p.lifestyle].factor}</div></div>
@@ -1865,7 +1901,8 @@ async function pushVault({ force = false, silent = true } = {}) {
   if (cloud.busy) { cloud.queued = true; return false; }
   cloud.busy = true; setCloud('syncing', 'Saving to cloud…');
   try {
-    const r = await api('/api/vault', { method: 'PUT', body: { baseRev: session.rev || 0, updatedAt: state.meta.updated, data: exportableState(), force } });
+    const r = await api('/api/vault', { method: 'PUT', body: { baseRev: session.rev || 0, updatedAt: state.meta.updated, data: exportableState(), force: force || !!session.forceNext } });
+    session.forceNext = false;
     session.rev = r.rev; session.syncedAt = r.savedAt; storeSession(); cloud.dirty = false;
     setCloud('ok', 'All changes saved to the cloud');
     if (!silent) toast('Saved to your cloud account ☁️');
@@ -1900,6 +1937,7 @@ async function resolveConflict() {
 
 async function pullVault({ silent = true } = {}) {
   if (!session || session.user.role === 'trainer') return;
+  if (session.forceNext) { await pushVault({ force: true }); return; }
   loadCoach({ quiet: silent });
   cloud.lastPullCheck = Date.now();
   try {
@@ -2304,7 +2342,7 @@ function renderVault() {
         <div class="h-title"><i class="fa-solid fa-flask mr-1 text-violet-500"></i>Demo Data &amp; Reset</div>
         <div class="mt-4 space-y-2">
           <button class="btn btn-soft w-full !justify-start" onclick="loadDemoData()"><i class="fa-solid fa-wand-magic-sparkles w-5"></i>Load Realistic 14-Day Demo Data<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">replaces logs</span></button>
-          <button class="btn w-full !justify-start border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400 dark:hover:bg-rose-400/10" onclick="factoryReset()"><i class="fa-solid fa-triangle-exclamation w-5"></i>Factory Reset This Device<span class="ml-auto hidden text-[11px] font-normal opacity-70 sm:inline">irreversible</span></button>
+          <button class="btn w-full !justify-start border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400 dark:hover:bg-rose-400/10" onclick="factoryReset()"><i class="fa-solid fa-triangle-exclamation w-5"></i>${session && session.user.role !== 'trainer' ? 'Reset All My Data (device + cloud)' : 'Factory Reset This Device'}<span class="ml-auto hidden text-[11px] font-normal opacity-70 sm:inline">irreversible</span></button>
         </div>
         <div class="mt-3 text-[11px] muted">Tip: export a JSON backup before loading demo data or resetting.${session ? ' While signed in, demo data also replaces your cloud copy.' : ''}</div>
       </div>
@@ -2348,11 +2386,11 @@ function importJSON(input) {
 function exportCSV() {
   const days = Object.keys(state.logs).sort();
   if (!days.length) return toast('Nothing to export yet. Log some data first', 'warn');
-  const head = ['Date', 'Weight (kg)', 'Waist (cm)', 'Sleep (h)', 'Energy (1-5)', 'Steps', 'Distance (km)', 'Water (ml)', 'Calories In (kcal)', 'BMR (kcal)', 'Step Burn (kcal)', 'Cardio Burn (kcal)', 'Calories Burnt (kcal)', 'Net Deficit (kcal)', 'Cardio Minutes', 'Protein (g)', 'Carbs (g)', 'Fat (g)', 'Fiber (g)', 'Fitness Score'];
+  const head = ['Date', 'Weight (kg)', 'Waist (cm)', 'Sleep (h)', 'Energy (1-5)', 'Steps', 'Distance (km)', 'Water (ml)', 'Calories In (kcal)', 'BMR (kcal)', 'Digestion TEF (kcal)', 'Step Burn (kcal)', 'Exercise Burn net (kcal)', 'Calories Burnt (kcal)', 'Net Deficit (kcal)', 'Cardio Minutes', 'Protein (g)', 'Carbs (g)', 'Fat (g)', 'Fiber (g)', 'Fitness Score'];
   const q = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const rows = days.map((d) => {
     const s = daySummary(d), b = state.logs[d].bio;
-    return [d, b.weight ?? '', b.waist ?? '', b.sleep ?? '', b.energy ?? '', s.steps, r2(s.distance), s.water, Math.round(s.intake), Math.round(s.bmr), Math.round(s.stepKcal), Math.round(s.cardioKcal), Math.round(s.burnt), s.hasFood ? Math.round(s.deficit) : '', s.cardioMin, r1(s.p), r1(s.c), r1(s.f), r1(s.fib), analyze(d).score].map(q).join(',');
+    return [d, b.weight ?? '', b.waist ?? '', b.sleep ?? '', b.energy ?? '', s.steps, r2(s.distance), s.water, Math.round(s.intake), Math.round(s.bmr), Math.round(s.tef), Math.round(s.stepKcal), Math.round(s.cardioKcal), Math.round(s.burnt), s.hasFood ? Math.round(s.deficit) : '', s.cardioMin, r1(s.p), r1(s.c), r1(s.f), r1(s.fib), analyze(d).score].map(q).join(',');
   });
   downloadFile(`miyeefit-pro-report-${todayStr()}.csv`, '﻿' + [head.join(','), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
   toast(`Progress report exported (${days.length} days)`);
@@ -2412,13 +2450,24 @@ async function loadDemoData() {
   save(); renderAll(); toast('14 days of realistic pure-veg demo data loaded 🎉');
 }
 async function factoryReset() {
-  const ok = await confirmDialog({ title: 'Factory reset this device', message: 'This permanently deletes your profile, every daily log and custom foods from this browser.' + (session ? ' You will also be signed out on this device. Your <b>cloud account data is not deleted</b>. Sign in again to restore it.' : ''), confirmText: 'Erase everything', danger: true, requireText: 'RESET' });
+  const signedIn = isMember();
+  const ok = await confirmDialog({
+    title: signedIn ? 'Reset all my data' : 'Factory reset this device',
+    message: signedIn
+      ? `This permanently erases your profile, every daily log and your custom foods <b>on this device and in your cloud account</b> (${esc(session.user.email)}). You stay signed in and start fresh. Your account and your trainer link are kept.`
+      : 'This permanently deletes your profile, every daily log and your custom foods from this browser.',
+    confirmText: 'Erase everything', danger: true, requireText: 'RESET'
+  });
   if (!ok) return;
-  if (session) { clearTimeout(cloudTimer); try { await api('/api/auth/logout', { method: 'POST', timeout: 6000 }); } catch (e) { /* ignore */ } session = null; storeSession(); cloud.dirty = false; setCloud('idle', ''); }
-  localStorage.removeItem(STORAGE_KEY);
-  state = defaultState(); ui.date = todayStr();
-  save({ skipSync: true }); renderAll(); toast('This device was reset to factory defaults', 'info');
-  if (cloud.available) openAuth('login', { gate: true });
+  clearTimeout(cloudTimer);
+  const theme = state.settings.theme;
+  state = defaultState(); state.settings.theme = theme; ui.date = todayStr();
+  if (signedIn) { state.profile.name = session.user.name; state.meta.owner = session.user.id; session.forceNext = true; storeSession(); }
+  save({ skipSync: true }); renderAll();
+  if (!signedIn) { toast('This device was reset to factory defaults', 'info'); return; }
+  const pushed = await pushVault({ force: true });
+  toast(pushed ? 'All your data was erased here and in the cloud. You are still signed in.' : 'Erased on this device. Your cloud copy will be cleared as soon as you are back online.', pushed ? 'info' : 'warn');
+  if (!pushed) cloud.dirty = true;
 }
 
 /* =====================================================================
@@ -2853,6 +2902,7 @@ function nextMealSuggestion(date = ui.date) {
   return { meal, budget, remKcal, remP, pBudget, options, light: remKcal < 120 };
 }
 function suggestionCardHtml() {
+  if (state.profile.trackFood === false) return `<div class="h-title"><i class="fa-solid fa-bowl-food mr-1 text-emerald-500"></i>Eating guide</div><p class="mt-2 text-sm muted">You don't log food, so here is a simple daily guide: about <b>${fmt(targets().kcal)} kcal</b> and <b>${Math.round(targets().proteinMin)} g protein</b>, split across breakfast, lunch, an evening snack and dinner. The <b>Veg Diet Planner</b> shows ${state.profile.dietType === 'jain' ? 'Jain' : 'vegetarian'} meal ideas at this level.</p><button class="btn btn-soft btn-sm mt-3" onclick="go('planner')"><i class="fa-solid fa-leaf"></i>See meal ideas</button>`;
   const sg = nextMealSuggestion();
   ui.suggestion = sg;
   const jain = state.profile.dietType === 'jain';
