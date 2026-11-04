@@ -1,0 +1,12 @@
+# Only index.html is published as a static asset.
+.git
+.github
+.wrangler
+node_modules
+worker
+wrangler.jsonc
+.assetsignore
+.gitignore
+README.md
+package.json
+package-lock.json
