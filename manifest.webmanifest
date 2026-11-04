@@ -1,0 +1,31 @@
+{
+  "id": "./",
+  "name": "MiyeeFit Pro",
+  "short_name": "MiyeeFit",
+  "description": "Fitness, weight reduction and pure vegetarian nutrition tracker with Jain meal plans, a daily Fitness Score and personal trainer support. By Miyee Tech Labs.",
+  "start_url": "./#dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#FFFBEB",
+  "theme_color": "#F59E0B",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["health", "fitness", "lifestyle", "food"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/wide.jpg", "sizes": "1280x800", "type": "image/jpeg", "form_factor": "wide", "label": "Fitness Dashboard on a laptop" },
+    { "src": "screenshots/mobile.jpg", "sizes": "780x1688", "type": "image/jpeg", "form_factor": "narrow", "label": "Fitness Dashboard on a phone" }
+  ],
+  "shortcuts": [
+    { "name": "Daily Tracker", "short_name": "Tracker", "url": "./#tracker", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My Coach", "short_name": "Coach", "url": "./#coach", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Veg Diet Planner", "short_name": "Diet", "url": "./#planner", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

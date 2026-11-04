@@ -25,6 +25,11 @@ The whole app is a single `index.html` (Tailwind CSS, Chart.js and Font Awesome 
 - BMI: WHO and Asian-Indian cut-offs. Waist: waist-to-height ratio < 0.5 (NICE), waist < 90 cm men / 80 cm women (IDF South Asian).
 - Members who don't log food can turn off "I log my food": calorie and protein checks are skipped and the score is rescaled from the other 55 points.
 
+## Install as an app & link previews
+- Installable Progressive Web App: `manifest.webmanifest`, icons in `icons/`, install screenshots in `screenshots/`, and `sw.js` (offline app shell; `/api/*` is never cached).
+- Install from Chrome/Edge (address-bar install icon or the in-app **Install app** button), Android (menu, Install app), iPhone/iPad (Safari, Share, Add to Home Screen).
+- Link preview: Open Graph and Twitter/X tags with `og-image.jpg` (1200 × 630). The Worker runs first for `/` and rewrites the preview URLs to absolute ones.
+
 ## Accounts & cloud sync
 - Sign up with name, email and password. Passwords are hashed with PBKDF2-SHA256 (100k iterations), and sessions last 30 days.
 - Every change is saved locally first, then pushed to the cloud about 1.5 s later. It works offline and syncs again when the connection is back.

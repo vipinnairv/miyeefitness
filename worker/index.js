@@ -462,10 +462,27 @@ async function route(request, env, url) {
   throw new HttpError(404, 'Not found');
 }
 
+// Link previews (WhatsApp, LinkedIn, Facebook, X) need absolute URLs for og:image and og:url.
+// index.html uses relative URLs so it also works on other hosts; the Worker makes them absolute here.
+async function serveAsset(request, env) {
+  const response = await env.ASSETS.fetch(request);
+  if (!(response.headers.get('content-type') || '').includes('text/html')) return response;
+  const origin = new URL(request.url).origin + '/';
+  const absolute = (v) => { try { return new URL(v || './', origin).href; } catch (e) { return v; } };
+  const rewriteContent = { element(el) { el.setAttribute('content', absolute(el.getAttribute('content'))); } };
+  return new HTMLRewriter()
+    .on('meta[property="og:image"]', rewriteContent)
+    .on('meta[property="og:image:secure_url"]', rewriteContent)
+    .on('meta[property="og:url"]', rewriteContent)
+    .on('meta[name="twitter:image"]', rewriteContent)
+    .on('link[rel="canonical"]', { element(el) { el.setAttribute('href', absolute(el.getAttribute('href'))); } })
+    .transform(response);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    if (!url.pathname.startsWith('/api/')) return serveAsset(request, env);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     try {
       return await route(request, env, url);
