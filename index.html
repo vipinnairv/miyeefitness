@@ -136,15 +136,15 @@
     <header class="sticky top-0 z-30 border-b border-amber-200/70 bg-amber-50/85 backdrop-blur-md dark:border-white/5 dark:bg-obsidian/85">
       <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 md:px-6">
         <div class="flex min-w-0 flex-1 items-center gap-3">
-          <div class="grad-amber flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-md shadow-amber-500/30 lg:hidden">
+          <div class="grad-amber hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-md shadow-amber-500/30 sm:flex lg:hidden">
             <i class="fa-solid fa-bolt-lightning"></i>
           </div>
           <div class="min-w-0">
-            <div id="greeting" class="truncate text-base font-extrabold text-zinc-900 dark:text-white sm:text-lg">Welcome</div>
+            <div id="greeting" class="truncate text-[15px] font-extrabold leading-tight text-zinc-900 dark:text-white sm:text-lg">Welcome</div>
             <div id="subGreeting" class="truncate text-xs muted">Let's make today count.</div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <div id="streakBadge" class="hidden items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-sm font-bold text-orange-600 shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:ring-white/10 sm:flex" title="Logging streak">
             <i class="fa-solid fa-fire"></i><span id="streakVal">0</span><span class="hidden text-xs font-semibold text-zinc-500 md:inline">day streak</span>
           </div>
@@ -152,11 +152,12 @@
             <i class="fa-solid fa-medal"></i><span id="scoreVal">0</span><span class="hidden text-xs font-semibold text-zinc-500 md:inline">/100</span>
           </button>
           <button id="accountBtn" class="hidden" aria-label="Account"></button>
+          <button id="helpBtn" onclick="go('guide')" class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:text-amber-300 dark:ring-white/10" title="User Guide and interactive tour" aria-label="Help"><i class="fa-solid fa-circle-question"></i></button>
           <button onclick="toggleTheme()" class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:text-amber-300 dark:ring-white/10" title="Toggle light / dark theme" aria-label="Toggle theme">
             <i id="themeIcon" class="fa-solid fa-moon"></i>
           </button>
         </div>
-        <div class="flex w-full items-center gap-1.5 sm:w-auto">
+        <div id="dateBar" class="flex w-full items-center gap-1.5 sm:w-auto">
           <button onclick="shiftDate(-1)" class="btn btn-ghost btn-sm !px-2" title="Previous day" aria-label="Previous day"><i class="fa-solid fa-chevron-left"></i><span class="hidden sm:inline">Prev</span></button>
           <button onclick="setDate(todayStr())" id="todayBtn" class="btn btn-soft btn-sm">Today</button>
           <input id="datePicker" type="date" class="input !w-auto !py-1.5 !text-xs font-semibold" onchange="if(this.value) setDate(this.value)">
@@ -172,7 +173,12 @@
       <section id="view-insights" class="view hidden"></section>
       <section id="view-planner" class="view hidden"></section>
       <section id="view-profile" class="view hidden"></section>
+      <section id="view-coach" class="view hidden"></section>
       <section id="view-vault" class="view hidden"></section>
+      <section id="view-guide" class="view hidden"></section>
+      <section id="view-clients" class="view hidden"></section>
+      <section id="view-client" class="view hidden"></section>
+      <section id="view-trainerProfile" class="view hidden"></section>
     </main>
 
     <footer class="border-t border-amber-200/70 px-4 py-5 text-center text-xs text-zinc-500 dark:border-white/5 dark:text-zinc-500">
@@ -197,6 +203,11 @@
 </div>
 
 <div id="authScreen" class="fixed inset-0 z-[55] hidden overflow-y-auto bg-amber-50 dark:bg-obsidian"></div>
+
+<div id="tourLayer" class="fixed inset-0 z-[58] hidden">
+  <div id="tourSpot" class="pointer-events-none fixed rounded-2xl ring-4 ring-amber-400 transition-all duration-300" style="box-shadow:0 0 0 9999px rgba(15,20,28,.62)"></div>
+  <div id="tourPop" class="fixed rounded-2xl bg-white p-4 shadow-2xl dark:bg-ink"></div>
+</div>
 
 <div id="toasts" class="pointer-events-none fixed bottom-24 left-1/2 z-[60] flex w-[92vw] max-w-sm -translate-x-1/2 flex-col gap-2 lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0"></div>
 
@@ -304,7 +315,7 @@ const FOOD_DB = [
   ['jain_sabzi', 'Jain Sabzi (lauki / tinda / capsicum)', '1 katori (150g)', 'Vegetables', 95, 2.2, 10, 5, 3.5, 'j lg'],
   ['bhindi', 'Bhindi Sabzi', '1 katori (150g)', 'Vegetables', 120, 3, 12, 7, 5, 'j lg'],
   ['veg_soup', 'Clear Vegetable Soup', '1 bowl (250ml)', 'Vegetables', 70, 2.5, 12, 1.5, 3, 'lg'],
-  ['masala_chai', 'Masala Chai (less sugar)', '1 cup (150ml)', 'Beverages', 80, 2.8, 11, 2.6, 0, 'j'],
+  ['masala_chai', 'Masala Chai (less sugar)', '1 cup (150ml)', 'Beverages', 80, 2.8, 11, 2.6, 0, ''],
   ['green_tea', 'Green Tea (no sugar)', '1 cup (200ml)', 'Beverages', 2, 0, 0.5, 0, 0, 'j lg'],
   ['coconut_water', 'Tender Coconut Water', '1 glass (250ml)', 'Beverages', 48, 1.8, 9, 0.5, 2.8, 'j lg'],
   ['ghee', 'Ghee', '1 tsp (5g)', 'Fats & Oils', 45, 0, 0, 5, 0, 'j']
@@ -391,7 +402,7 @@ const PLAN_TEMPLATES = [
     }
   },
   {
-    id: 'jain', name: 'Jain / No-Onion-No-Garlic Plan', sub: 'Satvik & root-vegetable free', icon: 'fa-hands-praying',
+    id: 'jain', jain: true, name: 'Jain / No-Onion-No-Garlic Plan', sub: 'Satvik & root-vegetable free', icon: 'fa-hands-praying',
     desc: 'Only Jain-friendly items: no onion, garlic, potato or other root vegetables.',
     meals: {
       early: [[['almonds', 1], ['walnuts', 0.5]], [['coconut_water', 1], ['almonds', 1]]],
@@ -401,13 +412,25 @@ const PLAN_TEMPLATES = [
       dinner: [[['phulka', 2], ['lowfat_paneer', 0.75], ['jain_sabzi', 1]], [['tofu', 1], ['jain_dal', 1], ['phulka', 1]], [['soya_chunks', 0.5], ['bhindi', 1], ['phulka', 2]]],
       post: [[['whey', 1], ['papaya', 0.5]], [['skim_milk', 1], ['guava', 1]]]
     }
+  },
+  {
+    id: 'jain_hp', jain: true, name: 'Jain High-Protein Fat Loss', sub: 'Paneer, dal, soya & curd, no root vegetables', icon: 'fa-dumbbell',
+    desc: 'Jain-friendly plan with more protein from paneer, moong, soya, tofu and curd to protect muscle while losing fat.',
+    meals: {
+      early: [[['almonds', 1], ['chia', 1]], [['walnuts', 1], ['green_tea', 1]]],
+      breakfast: [[['moong_chilla', 2], ['greek_yogurt', 1]], [['paneer', 0.5], ['roti', 1], ['curd', 0.5]], [['oats', 1], ['milk', 1], ['almonds', 0.5]]],
+      lunch: [[['roti', 2], ['jain_dal', 1], ['lowfat_paneer', 0.5], ['curd', 0.5]], [['quinoa', 1], ['chana_dal', 1], ['green_salad', 1]], [['multigrain_roti', 2], ['soya_chunks', 0.5], ['jain_sabzi', 1]]],
+      snack: [[['roasted_chana', 1], ['buttermilk', 1]], [['sattu', 1], ['guava', 1]], [['makhana', 1], ['skim_milk', 1]]],
+      dinner: [[['tofu', 1], ['jain_sabzi', 1], ['phulka', 1]], [['lowfat_paneer', 1], ['bhindi', 1], ['phulka', 1]], [['jain_dal', 1], ['khichdi', 0.5], ['curd', 0.5]]],
+      post: [[['whey', 1], ['papaya', 0.5]], [['plant_protein', 1], ['apple', 0.5]]]
+    }
   }
 ];
 
 /* ---------- State ---------- */
 function defaultProfile() {
   return {
-    name: 'Miyee Athlete', age: 32, gender: 'male', height: 172, lifestyle: 'sedentary',
+    name: 'Miyee Athlete', age: 32, gender: 'male', height: 172, lifestyle: 'sedentary', dietType: 'veg',
     startWeight: 86, startDate: todayStr(), currentWeight: 86, targetWeight: 74, weeklyRate: 0.5,
     stepGoal: 10000, waterAuto: true, waterGoal: 3000, cardioGoal: 30,
     customTargets: false, customCalories: 1700, customProtein: 110, customCarbs: 190, customFat: 50
@@ -429,7 +452,7 @@ function defaultState() {
     meta: { created: now, updated: now }
   };
 }
-const emptyLog = () => ({ steps: 0, water: 0, foods: [], cardio: [], bio: {} });
+const emptyLog = () => ({ steps: 0, water: 0, foods: [], cardio: [], bio: {}, done: [] });
 
 function sanitizeLog(l) {
   const out = emptyLog();
@@ -447,6 +470,7 @@ function sanitizeLog(l) {
   }));
   const b = l.bio && typeof l.bio === 'object' ? l.bio : {};
   ['weight', 'waist', 'sleep', 'energy'].forEach((k) => { if (b[k] !== undefined && b[k] !== null && b[k] !== '' && Number.isFinite(num(b[k], NaN))) out.bio[k] = num(b[k]); });
+  out.done = (Array.isArray(l.done) ? l.done : []).filter((x) => typeof x === 'string' && x.length <= 40).slice(0, 100);
   return out;
 }
 
@@ -465,6 +489,7 @@ function sanitizeState(s) {
   });
   if (!LIFESTYLES[p.lifestyle]) p.lifestyle = 'sedentary';
   if (!['male', 'female'].includes(p.gender)) p.gender = 'male';
+  if (!['veg', 'jain'].includes(p.dietType)) p.dietType = 'veg';
   if (!isDateKey(p.startDate)) p.startDate = todayStr();
   const logs = {};
   Object.entries(s.logs || {}).forEach(([k, v]) => { if (isDateKey(k)) logs[k] = sanitizeLog(v); });
@@ -506,7 +531,7 @@ const getLog = (d) => state.logs[d] || emptyLog();
 function ensureLog(d) { if (!state.logs[d]) state.logs[d] = emptyLog(); return state.logs[d]; }
 function pruneLog(d) {
   const l = state.logs[d]; if (!l) return;
-  if (!l.steps && !l.water && !l.foods.length && !l.cardio.length && !Object.keys(l.bio).length) delete state.logs[d];
+  if (!l.steps && !l.water && !l.foods.length && !l.cardio.length && !Object.keys(l.bio).length && !(l.done || []).length) delete state.logs[d];
 }
 const allFoods = () => FOOD_DB.concat(state.customFoods);
 const findFood = (id) => allFoods().find((f) => f.id === id);
@@ -524,8 +549,9 @@ function strideCm() { return state.profile.height * (state.profile.gender === 'f
 const stepKcal = (steps, w) => steps * w * 0.0005;
 const minCalories = () => state.profile.gender === 'female' ? 1200 : 1500;
 
-function targets() {
+function targets(ownOnly = false) {
   const p = state.profile;
+  const ct = ownOnly ? {} : coachTargets();
   const w = p.currentWeight || p.startWeight;
   const bmr = bmrFor(w);
   const tdee = bmr * (LIFESTYLES[p.lifestyle] || LIFESTYLES.sedentary).factor;
@@ -538,11 +564,16 @@ function targets() {
   let fat = kcal * 0.27 / 9;
   let carbs = Math.max(50, (kcal - protein * 4 - fat * 9) / 4);
   if (p.customTargets) { kcal = p.customCalories; protein = p.customProtein; carbs = p.customCarbs; fat = p.customFat; }
+  let pMin = proteinMin, pMax = proteinMax;
+  if (ct.calories) { kcal = ct.calories; fat = kcal * 0.27 / 9; carbs = Math.max(50, (kcal - protein * 4 - fat * 9) / 4); }
+  if (ct.protein) { protein = ct.protein; pMin = ct.protein; pMax = Math.max(proteinMax, ct.protein); carbs = Math.max(50, (kcal - protein * 4 - fat * 9) / 4); }
   const fiber = Math.max(25, kcal / 1000 * 14);
-  const water = p.waterAuto ? Math.round(w * 35 / 250) * 250 : p.waterGoal;
+  const water = ct.water || (p.waterAuto ? Math.round(w * 35 / 250) * 250 : p.waterGoal);
   const effectiveDeficit = tdee - kcal;
-  return { bmr, tdee, plannedDeficit, effectiveDeficit, kcal, floored, protein, proteinMin, proteinMax, fat, carbs, fiber, water, steps: p.stepGoal, cardio: p.cardioGoal };
+  const src = { steps: ct.steps ? 'coach' : 'you', cardio: ct.cardio ? 'coach' : 'you', water: ct.water ? 'coach' : 'you', calories: ct.calories ? 'coach' : 'you', protein: ct.protein ? 'coach' : 'you' };
+  return { bmr, tdee, plannedDeficit, effectiveDeficit, kcal, floored: floored && !ct.calories, protein, proteinMin: pMin, proteinMax: pMax, fat, carbs, fiber, water, steps: ct.steps || p.stepGoal, cardio: ct.cardio ?? p.cardioGoal, src };
 }
+const targetsOwn = () => targets(true);
 
 function bmiInfo(w = state.profile.currentWeight) {
   const h = state.profile.height / 100;
@@ -653,7 +684,7 @@ function analyze(date) {
     else {
       const gap = min - s.p;
       st = s.p >= 0.7 * min ? 'amber' : 'red';
-      const opts = PROTEIN_FIXES.map(findFood).filter(Boolean).map((f) => ({ f, qty: f.p >= gap ? 1 : Math.min(2, Math.ceil(gap / f.p * 2) / 2) }))
+      const opts = PROTEIN_FIXES.map(findFood).filter((f) => f && dietOk(f)).map((f) => ({ f, qty: f.p >= gap ? 1 : Math.min(2, Math.ceil(gap / f.p * 2) / 2) }))
         ;
       opts.slice(0, 3).forEach((o) => fixes.push(o));
       const [a, b] = opts;
@@ -787,22 +818,34 @@ function buildPlan(templateId, targetKcal, swaps = {}) {
 /* =====================================================================
  *  UI Framework: navigation, toasts, modals, helpers
  * ===================================================================== */
-const VIEWS = [
+const MEMBER_VIEWS = [
   { id: 'dashboard', label: 'Dashboard', short: 'Home', icon: 'fa-gauge-high' },
   { id: 'tracker', label: 'Daily Tracker', short: 'Tracker', icon: 'fa-list-check' },
   { id: 'insights', label: 'Scope of Improvement', short: 'Insights', icon: 'fa-wand-magic-sparkles' },
   { id: 'planner', label: 'Veg Diet Planner', short: 'Diet', icon: 'fa-leaf' },
+  { id: 'coach', label: 'My Coach', short: 'Coach', icon: 'fa-user-tie' },
   { id: 'profile', label: 'Profile & Biometrics', short: 'Profile', icon: 'fa-user-gear' },
-  { id: 'vault', label: 'Data Vault & Sync', short: 'Vault', icon: 'fa-cloud-arrow-up' }
+  { id: 'vault', label: 'Data Vault & Sync', short: 'Vault', icon: 'fa-cloud-arrow-up' },
+  { id: 'guide', label: 'User Guide', short: 'Guide', icon: 'fa-circle-question', mobile: false }
 ];
+const TRAINER_VIEWS = [
+  { id: 'clients', label: 'Clients', short: 'Clients', icon: 'fa-users' },
+  { id: 'client', label: 'Client', short: 'Client', icon: 'fa-user', nav: false },
+  { id: 'trainerProfile', label: 'Trainer Profile', short: 'Profile', icon: 'fa-id-badge' },
+  { id: 'guide', label: 'User Guide', short: 'Guide', icon: 'fa-circle-question' }
+];
+const currentViews = () => (isTrainer() ? TRAINER_VIEWS : MEMBER_VIEWS);
 
 function renderNav() {
-  $('sideNav').innerHTML = VIEWS.map((v) => `<button class="nav-item ${ui.view === v.id ? 'active' : ''}" onclick="go('${v.id}')"><i class="fa-solid ${v.icon} w-5 text-center"></i>${v.label}</button>`).join('');
-  $('bottomNav').innerHTML = VIEWS.map((v) => `<button class="bnav-item ${ui.view === v.id ? 'active' : ''}" onclick="go('${v.id}')"><i class="fa-solid ${v.icon} text-base"></i>${v.short}</button>`).join('');
+  const views = currentViews().filter((v) => v.nav !== false);
+  const badge = (v) => (v.id === 'coach' && coach.unread) || (v.id === 'clients' && (trainerUi.clients || []).some((c) => c.unread)) ? '<span class="ml-auto h-2.5 w-2.5 rounded-full bg-rose-500"></span>' : '';
+  const active = (v) => ui.view === v.id || (v.id === 'clients' && ui.view === 'client');
+  $('sideNav').innerHTML = views.map((v) => `<button class="nav-item ${active(v) ? 'active' : ''}" onclick="go('${v.id}')"><i class="fa-solid ${v.icon} w-5 text-center"></i>${v.label}${badge(v)}</button>`).join('');
+  $('bottomNav').innerHTML = views.filter((v) => v.mobile !== false).map((v) => `<button class="bnav-item relative ${active(v) ? 'active' : ''}" onclick="go('${v.id}')"><i class="fa-solid ${v.icon} text-base"></i>${v.short}${badge(v) ? '<span class="absolute right-1/4 top-1.5 h-2 w-2 rounded-full bg-rose-500"></span>' : ''}</button>`).join('');
 }
 
 function go(view) {
-  if (!VIEWS.some((v) => v.id === view)) view = 'dashboard';
+  if (!currentViews().some((v) => v.id === view)) view = currentViews()[0].id;
   ui.view = view;
   if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
   document.querySelectorAll('.view').forEach((el) => el.classList.toggle('hidden', el.id !== 'view-' + view));
@@ -812,8 +855,8 @@ function go(view) {
 }
 
 function renderView() {
-  const map = { dashboard: renderDashboard, tracker: renderTracker, insights: renderInsights, planner: renderPlanner, profile: renderProfile, vault: renderVault };
-  (map[ui.view] || renderDashboard)();
+  const map = { dashboard: renderDashboard, tracker: renderTracker, insights: renderInsights, planner: renderPlanner, profile: renderProfile, vault: renderVault, coach: renderCoach, guide: renderGuide, clients: renderClients, client: renderClient, trainerProfile: renderTrainerProfile };
+  (map[ui.view] || map[currentViews()[0].id])();
 }
 
 function refresh() { save(); renderHeader(); renderBanner(); renderView(); }
@@ -859,16 +902,24 @@ const stBorder = (st) => ({ green: 'border-l-emerald-500', amber: 'border-l-ambe
 /* ---------- Header ---------- */
 function renderHeader() {
   const h = new Date().getHours();
-  const greet = h < 5 ? 'Burning the midnight oil' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  const first = (state.profile.name || 'Athlete').trim().split(/\s+/)[0];
-  $('greeting').textContent = `${greet}, ${first} 👋`;
+  const greet = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const trainer = isTrainer();
+  const first = firstName(trainer ? session.user.name : (state.profile.name || 'Athlete'));
+  $('greeting').innerHTML = `<span class="hidden sm:inline">${greet}, </span><span class="sm:hidden">Hi, </span>${esc(first)}`;
+  $('greeting').title = `${greet}, ${first}`;
+  ['dateBar', 'scoreBadge'].forEach((id) => $(id).classList.toggle('!hidden', trainer));
+  $('streakBadge').classList.toggle('!hidden', trainer);
+  const dark0 = document.documentElement.classList.contains('dark');
+  $('themeIcon').className = `fa-solid ${dark0 ? 'fa-sun' : 'fa-moon'}`;
+  if (trainer) { $('subGreeting').textContent = `Coach console • ${fmtLong(todayStr())}`; renderSyncIndicator(); return; }
   const isToday = ui.date === todayStr();
-  $('subGreeting').textContent = isToday ? fmtLong(ui.date) : `Viewing ${fmtLong(ui.date)} (${Math.abs(daysBetween(todayStr(), ui.date))} day(s) ago)`;
+  const shortDate = fmtDate(ui.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  $('subGreeting').innerHTML = isToday ? `<span class="hidden sm:inline">${fmtLong(ui.date)}</span><span class="sm:hidden">${shortDate}</span>` : `Viewing ${shortDate} (${Math.abs(daysBetween(todayStr(), ui.date))}d ago)`;
   $('datePicker').value = ui.date; $('datePicker').max = todayStr();
   $('nextBtn').disabled = isToday;
   $('todayBtn').classList.toggle('ring-2', !isToday); $('todayBtn').classList.toggle('ring-amber-400', !isToday);
   const st = streak();
-  $('streakVal').textContent = st; $('streakBadge').classList.toggle('hidden', false); $('streakBadge').classList.add('flex');
+  $('streakVal').textContent = st;
   const a = analyze(ui.date); const g = scoreGrade(a.score);
   $('scoreVal').textContent = a.score; $('scoreBadge').style.color = g.color; $('scoreBadge').title = `Daily Fitness Score: ${a.score}/100 (${g.label})`;
   const dark = document.documentElement.classList.contains('dark');
@@ -891,7 +942,7 @@ function toggleTheme() {
 }
 
 function renderBanner() {
-  const empty = Object.keys(state.logs).length === 0;
+  const empty = Object.keys(state.logs).length === 0 && !isTrainer();
   $('demoBanner').innerHTML = empty && !state.settings.demoDismissed ? `
     <div class="fade-in mb-5 overflow-hidden rounded-2xl grad-amber p-[1px] shadow-lg shadow-amber-500/20">
       <div class="flex flex-col gap-4 rounded-2xl bg-white/95 p-4 dark:bg-ink/95 sm:flex-row sm:items-center sm:p-5">
@@ -955,10 +1006,10 @@ function renderDashboard() {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" data-tour="kpis">
       <!-- Steps -->
       <div class="card card-pad flex flex-col">
-        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-400/15"><i class="fa-solid fa-shoe-prints"></i></span>Steps Walked</div><span class="text-xs muted">Goal ${fmt(t.steps)}</span></div>
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-400/15"><i class="fa-solid fa-shoe-prints"></i></span>Steps Walked</div><span class="text-xs muted">Goal ${fmt(t.steps)}${t.src.steps === 'coach' ? ' • coach' : ''}</span></div>
         <div class="my-4 flex items-center gap-4">
           ${ring(s.steps / t.steps, 'var(--c-steps)', 112, 11, `<div class="text-xl font-extrabold">${fmt(s.steps)}</div><div class="text-[10px] font-semibold uppercase muted">${Math.round(s.steps / t.steps * 100)}%</div>`)}
           <div class="space-y-2 text-sm">
@@ -1029,6 +1080,11 @@ function renderDashboard() {
         <div class="mt-2 text-[11px] muted">${pr.remaining > 0 ? `<i class="fa-solid fa-flag-checkered text-violet-500"></i> Projected: <b class="text-zinc-700 dark:text-zinc-200">${fmtDate(pr.date, { day: 'numeric', month: 'short', year: 'numeric' })}</b> based on ${pr.basis}` : '<i class="fa-solid fa-trophy text-amber-500"></i> Target weight achieved!'}</div>
         <div class="mt-auto flex gap-1.5 pt-3"><input id="dashWeight" type="number" step="0.1" class="input !py-1.5" placeholder="${getLog(ui.date).bio.weight ? 'Logged ' + getLog(ui.date).bio.weight + ' kg' : 'Log weight (kg)'}" onkeydown="if(event.key==='Enter')quickWeight()"><button class="btn btn-sm bg-violet-500 text-white hover:bg-violet-600" onclick="quickWeight()">Log</button></div>
       </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div class="card card-pad xl:col-span-2" data-tour="suggest">${suggestionCardHtml()}</div>
+      <div class="card card-pad">${coachTodayCardHtml()}</div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -1162,6 +1218,7 @@ const FOOD_CATS = ['All', 'Protein', 'Dals & Legumes', 'Grains', 'Breakfast', 'D
 
 function renderTracker() {
   if (!ui.foodMeal) ui.foodMeal = defaultMeal();
+  if (!ui.foodCatInit) { ui.foodCatInit = true; if (state.profile.dietType === 'jain') ui.foodCat = 'Jain'; }
   const s = daySummary(ui.date), t = targets();
   const b = getLog(ui.date).bio;
   if (ui.bioEnergyDate !== ui.date) { ui.bioEnergy = b.energy; ui.bioEnergyDate = ui.date; }
@@ -1186,7 +1243,7 @@ function renderTracker() {
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
       <div class="space-y-5 xl:col-span-2">
         <!-- Food logger -->
-        <div class="card card-pad">
+        <div class="card card-pad" data-tour="food">
           <div class="mb-3 flex items-center justify-between"><div><div class="h-title"><i class="fa-solid fa-seedling mr-1 text-emerald-500"></i>Pure Veg Calorie Logger</div><div class="text-xs muted">${allFoods().length} vegetarian foods • strictly no meat, fish, poultry or eggs</div></div></div>
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
             <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"></i><input id="foodSearch" class="input !pl-9" placeholder="Search roti, paneer, dal, poha…" value="${esc(ui.foodQuery)}" oninput="ui.foodQuery=this.value;renderFoodResults()"></div>
@@ -1221,7 +1278,7 @@ function renderTracker() {
 
       <div class="space-y-5">
         <!-- Cardio -->
-        <div class="card card-pad">
+        <div class="card card-pad" data-tour="cardio">
           <div class="h-title"><i class="fa-solid fa-heart-pulse mr-1 text-rose-500"></i>Cardio &amp; Workout Logger</div>
           <div class="text-xs muted">MET-based burn using your weight (${r1(s.weight)} kg)</div>
           <div class="mt-3 space-y-3">
@@ -1294,7 +1351,7 @@ function renderFoodResults() {
   el.innerHTML = list.length ? list.map((f) => `
     <div class="flex items-center gap-3 px-3 py-2 hover:bg-amber-50/70 dark:hover:bg-white/[.03]">
       <div class="min-w-0 flex-1">
-        <div class="truncate text-sm font-semibold">${esc(f.name)} ${f.tags.includes('j') ? '<span class="pill pill-violet !px-1.5 !py-0 !text-[9px]">Jain</span>' : ''}${f.tags.includes('lg') ? '<span class="pill pill-green !px-1.5 !py-0 !text-[9px]">Low-GI</span>' : ''}${!f.builtin ? '<span class="pill pill-amber !px-1.5 !py-0 !text-[9px]">Custom</span>' : ''}</div>
+        <div class="truncate text-sm font-semibold">${esc(f.name)} ${f.tags.includes('j') ? '<span class="pill pill-violet !px-1.5 !py-0 !text-[9px]">Jain</span>' : ''}${f.tags.includes('lg') ? '<span class="pill pill-green !px-1.5 !py-0 !text-[9px]">Low-GI</span>' : ''}${!f.builtin ? '<span class="pill pill-amber !px-1.5 !py-0 !text-[9px]">Custom</span>' : ''}${state.profile.dietType === 'jain' && f.builtin && !f.tags.includes('j') ? '<span class="pill pill-red !px-1.5 !py-0 !text-[9px]">Not Jain</span>' : ''}</div>
         <div class="truncate text-[11px] muted">${esc(f.serving)} • <b class="text-emerald-600 dark:text-emerald-400">${fmt(f.kcal)} kcal</b> • P ${r1(f.p)}g • C ${r1(f.c)}g • F ${r1(f.f)}g • Fib ${r1(f.fib)}g</div>
       </div>
       ${!f.builtin ? `<button class="btn btn-ghost btn-sm !px-1.5" onclick="openCustomFood('${f.id}')" aria-label="Edit custom food"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm !px-1.5 text-rose-500" onclick="deleteCustomFood('${f.id}')" aria-label="Delete custom food"><i class="fa-solid fa-trash-can"></i></button>` : ''}
@@ -1438,7 +1495,7 @@ function renderInsights() {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2" data-tour="audits">
       ${a.audits.map((x) => `
       <div class="card card-pad border-l-4 ${stBorder(x.st)}">
         <div class="flex items-start justify-between gap-3">
@@ -1494,6 +1551,9 @@ function renderInsights() {
  * ===================================================================== */
 function renderPlanner() {
   const ps = state.settings.planner;
+  const tpls = allowedTemplates();
+  if (!tpls.some((x) => x.id === ps.template)) ps.template = tpls[0].id;
+  const jainUser = state.profile.dietType === 'jain';
   const t = targets();
   const target = planTargetKcal();
   const plan = buildPlan(ps.template, target, ps.swaps[ps.template] || {});
@@ -1505,7 +1565,7 @@ function renderPlanner() {
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Pure Veg <span class="text-grad">Diet Planner</span></h1>
-        <p class="text-sm muted">Auto-generated meal plans scaled to your calorie target • 100% vegetarian</p>
+        <p class="text-sm muted">Auto-generated meal plans scaled to your calorie target • ${jainUser ? 'Jain (no onion, garlic or root vegetables)' : '100% vegetarian'}</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <select class="input !w-auto" onchange="state.settings.planner.calories=this.value;save({skipSync:true});renderPlanner()">
@@ -1516,10 +1576,13 @@ function renderPlanner() {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      ${PLAN_TEMPLATES.map((tp) => `<button onclick="state.settings.planner.template='${tp.id}';save({skipSync:true});renderPlanner()" class="card card-pad text-left transition hover:-translate-y-0.5 ${ps.template === tp.id ? '!border-amber-400 ring-4 ring-amber-400/20' : ''}">
+    <div class="card card-pad">${suggestionCardHtml()}</div>
+
+    ${jainUser ? '<div class="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-200"><i class="fa-solid fa-hands-praying"></i> Your diet preference is <b>Jain</b>, so only Jain plans are shown. Change it in Profile.</div>' : ''}
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-tour="templates">
+      ${tpls.map((tp) => `<button onclick="state.settings.planner.template='${tp.id}';save({skipSync:true});renderPlanner()" class="card card-pad text-left transition hover:-translate-y-0.5 ${ps.template === tp.id ? '!border-amber-400 ring-4 ring-amber-400/20' : ''}">
         <div class="flex items-center gap-3"><span class="${ps.template === tp.id ? 'grad-amber text-white' : 'bg-amber-100 text-amber-600 dark:bg-amber-400/10'} flex h-10 w-10 items-center justify-center rounded-xl"><i class="fa-solid ${tp.icon}"></i></span>
-        <div><div class="text-sm font-extrabold leading-tight">${tp.name}</div><div class="text-[11px] muted">${tp.sub}</div></div></div>
+        <div><div class="text-sm font-extrabold leading-tight">${tp.name}${tp.jain ? ' <span class="pill pill-violet !px-1.5 !py-0 !text-[9px]">Jain</span>' : ''}</div><div class="text-[11px] muted">${tp.sub}</div></div></div>
         <p class="mt-2 text-xs muted">${tp.desc}</p></button>`).join('')}
     </div>
 
@@ -1599,6 +1662,7 @@ const PROFILE_LIMITS = { age: [13, 100], height: [120, 230], startWeight: [30, 3
 
 function renderProfile() {
   const p = state.profile;
+  const ct = coachTargets();
   const inp = (k, label, type = 'number', extra = '') => `<div><label class="label" for="pf_${k}">${label}</label><input id="pf_${k}" data-field="${k}" type="${type}" class="input" value="${esc(p[k])}" onchange="setProfile(this)" ${extra}></div>`;
   $('view-profile').innerHTML = `
   <div class="fade-in space-y-5">
@@ -1612,6 +1676,10 @@ function renderProfile() {
             ${inp('age', 'Age (years)', 'number', 'min="13" max="100"')}
             <div><label class="label">Gender</label><select data-field="gender" class="input" onchange="setProfile(this)"><option value="male" ${p.gender === 'male' ? 'selected' : ''}>Male</option><option value="female" ${p.gender === 'female' ? 'selected' : ''}>Female</option></select></div>
             ${inp('height', 'Height (cm)', 'number', 'min="120" max="230" step="0.5"')}
+            <div class="sm:col-span-2 grid grid-cols-1 gap-3 sm:grid-cols-2" data-tour="diet-trainer">
+              <div><label class="label">Diet preference</label><select data-field="dietType" class="input" onchange="setProfile(this)"><option value="veg" ${p.dietType === 'veg' ? 'selected' : ''}>Pure Vegetarian</option><option value="jain" ${p.dietType === 'jain' ? 'selected' : ''}>Jain (no onion, garlic, root veg)</option></select></div>
+              <div><label class="label">Trainer / Coach</label>${trainerSelectHtml()}</div>
+            </div>
             <div class="sm:col-span-2"><label class="label">Occupation / Lifestyle</label><select data-field="lifestyle" class="input" onchange="setProfile(this)">${Object.entries(LIFESTYLES).map(([k, v]) => `<option value="${k}" ${p.lifestyle === k ? 'selected' : ''}>${v.label} (×${v.factor})</option>`).join('')}</select></div>
           </div>
         </div>
@@ -1628,12 +1696,14 @@ function renderProfile() {
         </div>
         <div class="card card-pad">
           <div class="h-title mb-3"><i class="fa-solid fa-sliders mr-1 text-cyan-500"></i>Custom Goal Targets</div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            ${inp('stepGoal', 'Daily step goal', 'number', 'step="500"')}
-            <div><label class="label">Daily water goal (ml)</label><input id="pf_waterGoal" data-field="waterGoal" type="number" step="250" class="input" value="${p.waterAuto ? targets().water : p.waterGoal}" ${p.waterAuto ? 'disabled' : ''} onchange="setProfile(this)">
-              <label class="mt-2 flex items-center gap-2 text-xs font-semibold"><span class="switch ${p.waterAuto ? 'on' : ''}" role="switch" aria-checked="${p.waterAuto}" onclick="toggleProfileFlag('waterAuto')"></span>Auto (35 ml/kg)</label></div>
-            ${inp('cardioGoal', 'Daily cardio (min)', 'number', 'step="5"')}
+          ${Object.keys(ct).some((k) => ct[k]) ? `<div class="mb-3 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800 dark:bg-amber-400/10 dark:text-amber-300"><i class="fa-solid fa-lock"></i> Fields marked "Set by coach" come from ${esc(coach.trainer ? coach.trainer.name : 'your coach')}. You set everything else yourself.</div>` : ''}
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3" data-tour="goals">
+            ${ct.steps ? lockedField('Daily step goal', fmt(ct.steps)) : inp('stepGoal', 'Daily step goal', 'number', 'step="500"')}
+            ${ct.water ? lockedField('Daily water goal (ml)', fmt(ct.water)) : `<div><label class="label">Daily water goal (ml)</label><input id="pf_waterGoal" data-field="waterGoal" type="number" step="250" class="input" value="${p.waterAuto ? targets().water : p.waterGoal}" ${p.waterAuto ? 'disabled' : ''} onchange="setProfile(this)">
+              <label class="mt-2 flex items-center gap-2 text-xs font-semibold"><span class="switch ${p.waterAuto ? 'on' : ''}" role="switch" aria-checked="${p.waterAuto}" onclick="toggleProfileFlag('waterAuto')"></span>Auto (35 ml/kg)</label></div>`}
+            ${ct.cardio ? lockedField('Daily cardio (min)', ct.cardio) : inp('cardioGoal', 'Daily cardio (min)', 'number', 'step="5"')}
           </div>
+          ${ct.calories || ct.protein ? `<div class="mt-3 grid grid-cols-2 gap-3">${ct.calories ? lockedField('Calories', fmt(ct.calories) + ' kcal') : ''}${ct.protein ? lockedField('Protein', ct.protein + ' g') : ''}</div>` : ''}
           <div class="mt-4 rounded-xl border border-amber-100 p-3 dark:border-white/5">
             <label class="flex items-center gap-3 text-sm font-bold"><span class="switch ${p.customTargets ? 'on' : ''}" role="switch" aria-checked="${p.customTargets}" onclick="toggleProfileFlag('customTargets')"></span>Custom calorie &amp; macro override</label>
             <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 ${p.customTargets ? '' : 'pointer-events-none opacity-40'}">
@@ -1646,6 +1716,19 @@ function renderProfile() {
     </div>
   </div>`;
   renderProfileReadout();
+}
+
+function lockedField(label, value) {
+  return `<div><label class="label">${label}</label><div class="input flex items-center justify-between !bg-amber-50 font-bold dark:!bg-amber-400/10"><span>${value}</span><span class="text-[10px] font-bold uppercase text-amber-600"><i class="fa-solid fa-lock"></i> Set by coach</span></div></div>`;
+}
+function trainerSelectHtml() {
+  if (!isMember()) return `<select class="input" disabled><option>${cloud.available ? 'Sign in to choose a trainer' : 'Available on the cloud version'}</option></select>`;
+  if (trainersCache === null) { loadTrainers().then(() => { if (ui.view === 'profile') renderProfile(); }); return '<select class="input" disabled><option>Loading trainers…</option></select>'; }
+  const list = trainersCache.slice();
+  if (coach.trainer && !list.some((t) => t.id === coach.trainer.id)) list.unshift(coach.trainer);
+  if (!list.length) return '<select class="input" disabled aria-label="No trainers listed"></select><div class="mt-1 text-[11px] muted">No trainers are listed yet.</div>';
+  const cur = coach.trainer ? coach.trainer.id : '';
+  return `<select class="input" onchange="chooseTrainer(this.value)"><option value="" ${cur ? '' : 'selected'}>No trainer</option>${list.map((t) => `<option value="${t.id}" ${t.id === cur ? 'selected' : ''} ${!t.accepting && t.id !== cur ? 'disabled' : ''}>${esc(t.name)} • ${esc(t.specialization)}${!t.accepting && t.id !== cur ? ' (full)' : ''}</option>`).join('')}</select>`;
 }
 
 function renderProfileReadout() {
@@ -1696,7 +1779,7 @@ function setProfile(el) {
   let v = el.value;
   if (k === 'name') v = v.trim().slice(0, 60) || 'Athlete';
   else if (k === 'startDate') { if (!isDateKey(v) || v > todayStr()) { el.value = p.startDate; return toast('Choose a valid start date (not in the future)', 'warn'); } }
-  else if (k === 'gender' || k === 'lifestyle') { /* string enums */ }
+  else if (k === 'gender' || k === 'lifestyle' || k === 'dietType') { /* string enums */ }
   else {
     v = num(v, NaN);
     const lim = PROFILE_LIMITS[k];
@@ -1704,6 +1787,7 @@ function setProfile(el) {
     if (['startWeight', 'currentWeight', 'targetWeight', 'height'].includes(k)) v = r1(v);
   }
   p[k] = v;
+  if (k === 'dietType') { ui.foodCatInit = false; ui.foodCat = 'All'; toast(v === 'jain' ? 'Jain diet on: suggestions and plans now avoid onion, garlic and root vegetables' : 'Pure vegetarian diet selected', 'info'); }
   if (k === 'targetWeight' && p.targetWeight >= p.currentWeight) toast('Target weight is at or above current weight (maintenance mode)', 'info');
   save(); renderProfileReadout(); renderHeader();
 }
@@ -1748,7 +1832,7 @@ async function api(path, { method = 'GET', body, timeout = 20000 } = {}) {
 
 async function checkCloud() {
   if (location.protocol === 'file:') { cloud.available = false; return false; }
-  try { const r = await api('/api/health', { timeout: 7000 }); cloud.available = !!r.ok; }
+  try { const r = await api('/api/health', { timeout: 7000 }); cloud.available = !!r.ok; cloud.trainerCodeRequired = !!r.trainerCodeRequired; }
   catch (e) { cloud.available = !!(session && e.status === 0); if (cloud.available) setCloud('offline', 'Offline: changes are kept on this device'); }
   return cloud.available;
 }
@@ -1770,14 +1854,14 @@ function handleExpired(msg) {
 /* ---------- Sync engine ---------- */
 let cloudTimer = null;
 function scheduleCloudSync() {
-  if (!session) return;
+  if (!session || session.user.role === 'trainer') return;
   cloud.dirty = true;
   clearTimeout(cloudTimer); cloudTimer = setTimeout(() => pushVault(), 1500);
   renderSyncIndicator();
 }
 
 async function pushVault({ force = false, silent = true } = {}) {
-  if (!session) return false;
+  if (!session || session.user.role === 'trainer') return false;
   if (cloud.busy) { cloud.queued = true; return false; }
   cloud.busy = true; setCloud('syncing', 'Saving to cloud…');
   try {
@@ -1815,7 +1899,8 @@ async function resolveConflict() {
 }
 
 async function pullVault({ silent = true } = {}) {
-  if (!session) return;
+  if (!session || session.user.role === 'trainer') return;
+  loadCoach({ quiet: silent });
   cloud.lastPullCheck = Date.now();
   try {
     if (!silent) setCloud('syncing', 'Checking for updates…');
@@ -1853,6 +1938,7 @@ function mergeStates(cloudState, deviceState) {
     const cids = new Set(c.cardio.map((x) => x.id)); l.cardio.forEach((x) => { if (!cids.has(x.id)) c.cardio.push(x); });
     c.steps = Math.max(c.steps, l.steps); c.water = Math.max(c.water, l.water);
     c.bio = { ...l.bio, ...c.bio };
+    c.done = [...new Set([...(c.done || []), ...(l.done || [])])];
   });
   const fids = new Set(out.customFoods.map((f) => f.id));
   deviceState.customFoods.forEach((f) => { if (!fids.has(f.id)) out.customFoods.push(f); });
@@ -1860,6 +1946,22 @@ function mergeStates(cloudState, deviceState) {
 }
 
 async function afterSignIn(user, token, isNew) {
+  resetCoach(); trainerUi.clients = null; trainerUi.detail = null; trainerUi.profile = null;
+  if (user.role === 'trainer') {
+    session = { token, user, rev: 0, syncedAt: null }; storeSession();
+    state.settings.authSkipped = false; persistLocal();
+    closeAuth(false); ui.view = 'clients';
+    setCloud('ok', 'Signed in as a coach');
+    renderAll(); loadClients();
+    toast(isNew ? `Welcome, Coach ${firstName(user.name)}! Complete your trainer profile so members can find you.` : `Welcome back, Coach ${firstName(user.name)}!`);
+    maybeAutoTour();
+    return;
+  }
+  if (ui.view && !MEMBER_VIEWS.some((v) => v.id === ui.view)) ui.view = 'dashboard';
+  await afterSignInMember(user, token, isNew);
+  if (isMember()) { await loadCoach(); renderAll(); maybeAutoTour(); }
+}
+async function afterSignInMember(user, token, isNew) {
   session = { token, user, rev: 0, syncedAt: null }; storeSession();
   state.settings.authSkipped = false;
   closeAuth(false);
@@ -1918,7 +2020,7 @@ function chooseMergeDialog(remote) {
 }
 
 /* ---------- Sign-in screen ---------- */
-const authUi = { mode: 'login', gate: false };
+const authUi = { mode: 'login', gate: false, role: 'member' };
 function openAuth(mode = 'login', { gate = false } = {}) {
   authUi.mode = mode; authUi.gate = gate;
   renderAuth();
@@ -1929,7 +2031,7 @@ function openAuth(mode = 'login', { gate = false } = {}) {
 function closeAuth(skip) {
   $('authScreen').classList.add('hidden');
   document.body.style.overflow = '';
-  if (skip && authUi.gate) { state.settings.authSkipped = true; persistLocal(); toast('Using MiyeeFit Pro on this device only. You can sign in any time from the header.', 'info'); }
+  if (skip && authUi.gate) { state.settings.authSkipped = true; persistLocal(); toast('Using MiyeeFit Pro on this device only. You can sign in any time from the header.', 'info'); maybeAutoTour(); }
 }
 function renderAuth() {
   const signup = authUi.mode === 'signup';
@@ -1961,11 +2063,13 @@ function renderAuth() {
           <button class="rounded-lg py-2 text-sm font-bold transition ${signup ? 'bg-white shadow text-amber-700 dark:bg-ink dark:text-amber-300' : 'muted'}" onclick="authUi.mode='signup';renderAuth()">Create account</button>
         </div>
         <form class="mt-5 space-y-3" onsubmit="submitAuth(event)" novalidate>
+          ${signup ? `<div class="grid grid-cols-2 gap-2">${[['member', 'fa-person-running', 'Member', 'Track my fitness'], ['trainer', 'fa-user-tie', 'Trainer / Coach', 'Coach my clients']].map(([r, ic, t1, t2]) => `<button type="button" class="rounded-xl border p-3 text-left transition ${authUi.role === r ? 'border-amber-400 bg-amber-50 ring-4 ring-amber-400/15 dark:bg-amber-400/10' : 'border-amber-100 dark:border-white/10'}" onclick="authUi.role='${r}';renderAuth()"><i class="fa-solid ${ic} text-amber-600"></i><div class="mt-1 text-sm font-bold">${t1}</div><div class="text-[11px] muted">${t2}</div></button>`).join('')}</div>` : ''}
           ${signup ? '<div><label class="label" for="auName">Full name</label><input id="auName" class="input" autocomplete="name" maxlength="60" placeholder="e.g. Priya Sharma" required></div>' : ''}
           <div><label class="label" for="auEmail">Email</label><input id="auEmail" type="email" class="input" autocomplete="email" placeholder="you@example.com" required></div>
           <div><label class="label" for="auPass">Password</label>
             <div class="relative"><input id="auPass" type="password" class="input !pr-10" autocomplete="${signup ? 'new-password' : 'current-password'}" placeholder="${signup ? 'At least 8 characters' : 'Your password'}" required>
             <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 text-zinc-400 hover:text-amber-600" onclick="const i=$('auPass');i.type=i.type==='password'?'text':'password';this.firstChild.className='fa-solid '+(i.type==='password'?'fa-eye':'fa-eye-slash')" aria-label="Show or hide password"><i class="fa-solid fa-eye"></i></button></div></div>
+          ${signup && authUi.role === 'trainer' ? `<div class="grid grid-cols-2 gap-2"><div><label class="label" for="auSpec">Specialization</label><input id="auSpec" class="input" maxlength="80" placeholder="e.g. Weight loss"></div><div><label class="label" for="auExp">Experience (years)</label><input id="auExp" type="number" min="0" max="60" class="input" placeholder="e.g. 5"></div></div>${cloud.trainerCodeRequired ? '<div><label class="label" for="auCode">Trainer sign-up code</label><input id="auCode" class="input" autocomplete="off" placeholder="Provided by the app owner"></div>' : ''}` : ''}
           ${signup ? '<div><label class="label" for="auPass2">Confirm password</label><input id="auPass2" type="password" class="input" autocomplete="new-password" placeholder="Repeat your password" required></div>' : ''}
           <div id="auError" class="hidden rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700 dark:bg-rose-400/10 dark:text-rose-300"></div>
           <button id="auSubmit" type="submit" class="btn btn-primary w-full !py-2.5">${signup ? '<i class="fa-solid fa-user-plus"></i>Create account' : '<i class="fa-solid fa-right-to-bracket"></i>Sign in'}</button>
@@ -1994,7 +2098,8 @@ async function submitAuth(e) {
   const btn = $('auSubmit'); const label = btn.innerHTML;
   btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i>${signup ? 'Creating account…' : 'Signing in…'}`;
   try {
-    const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST', body: signup ? { name, email, password } : { email, password } });
+    const extra = signup && authUi.role === 'trainer' ? { role: 'trainer', specialization: $('auSpec').value, experience: $('auExp').value, trainerCode: $('auCode') ? $('auCode').value : '' } : { role: 'member' };
+    const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST', body: signup ? { name, email, password, ...extra } : { email, password } });
     await afterSignIn(r.user, r.token, signup);
   } catch (ex) {
     if ($('auSubmit')) { btn.disabled = false; btn.innerHTML = label; err(ex.message); }
@@ -2009,7 +2114,7 @@ function renderAccountBtn() {
     el.className = 'relative flex h-9 items-center gap-2 rounded-xl bg-white pl-1 pr-1 text-sm font-bold shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:ring-white/10 md:pr-3';
     el.innerHTML = `<span class="grad-amber flex h-7 w-7 items-center justify-center rounded-lg text-xs font-extrabold text-white">${esc(firstName(session.user.name).charAt(0).toUpperCase())}</span><span class="hidden max-w-[110px] truncate md:inline">${esc(firstName(session.user.name))}</span><span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-obsidian ${dot}"></span>`;
     el.title = `Signed in as ${session.user.email} (${cloud.message || 'cloud sync on'})`;
-    el.onclick = () => go('vault');
+    el.onclick = () => go(isTrainer() ? 'trainerProfile' : 'vault');
   } else if (cloud.available) {
     el.className = 'btn btn-primary btn-sm !h-9';
     el.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i><span class="hidden sm:inline">Sign in</span>';
@@ -2020,7 +2125,10 @@ function renderAccountBtn() {
 
 function renderSyncIndicator() {
   const dot = $('sideSyncDot'), txt = $('sideSyncText'); if (!dot) return;
-  if (session) {
+  if (isTrainer()) {
+    dot.className = 'h-2 w-2 rounded-full bg-emerald-500';
+    txt.innerHTML = `<div class="truncate font-semibold text-zinc-700 dark:text-zinc-200">${esc(session.user.email)}</div><div>Coach account</div>`;
+  } else if (session) {
     const st = cloud.dirty && cloud.status === 'ok' ? 'syncing' : cloud.status;
     dot.className = 'h-2 w-2 rounded-full ' + ({ ok: 'bg-emerald-500', syncing: 'bg-amber-500 animate-pulse', offline: 'bg-zinc-400', error: 'bg-rose-500' }[st] || 'bg-emerald-500');
     const line = st === 'syncing' ? 'Saving…' : st === 'offline' ? 'Offline, saved on device' : st === 'error' ? 'Sync issue: open Data Vault' : session.syncedAt ? `Saved ${timeAgo(session.syncedAt)}` : 'Connected';
@@ -2049,6 +2157,15 @@ function cloudCardHtml() {
       <p class="mt-3 text-sm muted">Create a free account to save your profile, logs and custom foods to the cloud. Everything syncs automatically across all your devices.</p>
       <ul class="mt-3 space-y-1.5 text-xs muted"><li><i class="fa-solid fa-check text-emerald-500"></i> Automatic saving after every change</li><li><i class="fa-solid fa-check text-emerald-500"></i> Private vault per account, passwords securely hashed</li><li><i class="fa-solid fa-check text-emerald-500"></i> Keeps working offline</li></ul>
       <div class="mt-4 grid grid-cols-2 gap-2"><button class="btn btn-primary" onclick="openAuth('signup')"><i class="fa-solid fa-user-plus"></i>Create account</button><button class="btn btn-outline" onclick="openAuth('login')"><i class="fa-solid fa-right-to-bracket"></i>Sign in</button></div>`;
+  }
+  if (isTrainer()) {
+    return `${head}<span class="pill pill-violet">Coach</span></div>
+    <div class="mt-4 flex items-center gap-3"><span class="grad-amber flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-extrabold text-white">${initial(session.user.name)}</span><div class="min-w-0"><div class="truncate font-extrabold">${esc(session.user.name)}</div><div class="truncate text-sm muted">${esc(session.user.email)}</div></div></div>
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button class="btn btn-soft" onclick="changePasswordDialog()"><i class="fa-solid fa-key"></i>Change password</button>
+      <button class="btn btn-outline" onclick="signOutDialog()"><i class="fa-solid fa-right-from-bracket"></i>Sign out</button>
+      <button class="btn col-span-2 border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400 dark:hover:bg-rose-400/10" onclick="deleteAccountDialog()"><i class="fa-solid fa-user-xmark"></i>Delete coach account</button>
+    </div>`;
   }
   const st = cloud.dirty && cloud.status === 'ok' ? 'syncing' : cloud.status;
   const sm = { ok: ['bg-emerald-500', 'Synced'], idle: ['bg-emerald-500', 'Connected'], syncing: ['bg-amber-500 animate-pulse', 'Saving…'], offline: ['bg-zinc-400', 'Offline'], error: ['bg-rose-500', 'Sync issue'] }[st] || ['bg-emerald-500', 'Connected'];
@@ -2111,6 +2228,7 @@ function signOutDialog() {
 async function signOut(clear) {
   if (session) { try { await api('/api/auth/logout', { method: 'POST', timeout: 6000 }); } catch (e) { /* session will expire on its own */ } }
   session = null; storeSession(); cloud.dirty = false; clearTimeout(cloudTimer);
+  resetCoach(); trainerUi.clients = null; trainerUi.detail = null; trainerUi.profile = null; ui.view = 'dashboard';
   if (clear) { const theme = state.settings.theme; state = defaultState(); state.settings.theme = theme; ui.date = todayStr(); persistLocal(); }
   setCloud('idle', '');
   renderAll();
@@ -2132,6 +2250,7 @@ function deleteAccountDialog() {
       await api('/api/account', { method: 'DELETE', body: { password: $('daPass').value } });
       closeModal();
       session = null; storeSession(); cloud.dirty = false; delete state.meta.owner; persistLocal();
+      resetCoach(); trainerUi.clients = null; trainerUi.profile = null; ui.view = 'dashboard';
       state.settings.authSkipped = true; persistLocal();
       setCloud('idle', ''); renderAll(); toast('Your cloud account and its data were deleted', 'info');
     } catch (e) { if ($('daGo')) $('daGo').disabled = false; toast(e.message, 'error'); }
@@ -2302,13 +2421,581 @@ async function factoryReset() {
   if (cloud.available) openAuth('login', { gate: true });
 }
 
+/* =====================================================================
+ *  Module G: Trainers & Coaching, Diet Suggestions, Interactive Guide
+ * ===================================================================== */
+const COACH_KEY = 'miyeefit_pro_coach';
+const TOUR_KEY = 'miyeefit_pro_tour';
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const isTrainer = () => !!(session && session.user.role === 'trainer');
+const isMember = () => !!(session && session.user.role !== 'trainer');
+const initial = (n) => esc(String(n || '?').trim().charAt(0).toUpperCase() || '?');
+
+let coach = loadCoachCache();
+let trainersCache = null;
+let planCtx = null; // plan in effect while a trainer views a client
+const trainerUi = { clients: null, detail: null, draft: null, loading: false, profile: null };
+
+function loadCoachCache() {
+  try { const c = JSON.parse(localStorage.getItem(COACH_KEY) || 'null'); if (c && session && c.uid === session.user.id) return c; } catch (e) { /* ignore */ }
+  return { uid: null, trainer: null, plan: null, messages: [], unread: 0, fetchedAt: null };
+}
+function saveCoachCache() { try { localStorage.setItem(COACH_KEY, JSON.stringify(coach)); } catch (e) { /* ignore */ } }
+function resetCoach() { coach = { uid: null, trainer: null, plan: null, messages: [], unread: 0, fetchedAt: null }; trainersCache = null; try { localStorage.removeItem(COACH_KEY); } catch (e) { /* ignore */ } }
+function activePlan() { return planCtx || (isMember() && coach.uid === session.user.id ? coach.plan : null); }
+function coachTargets() { const p = activePlan(); return (p && p.targets) || {}; }
+
+async function loadCoach({ read = false, quiet = true } = {}) {
+  if (!isMember()) return;
+  try {
+    const r = await api('/api/coach' + (read ? '?read=1' : ''));
+    const hadTrainer = coach.trainer && coach.trainer.id;
+    const planChanged = JSON.stringify((coach.plan || {}).updatedAt) !== JSON.stringify((r.plan || {}).updatedAt);
+    coach = { uid: session.user.id, trainer: r.trainer, plan: r.plan, messages: r.messages || [], unread: read ? 0 : r.unread, fetchedAt: new Date().toISOString() };
+    saveCoachCache();
+    if (r.trainerRemoved && hadTrainer) toast('Your trainer is no longer available. Choose a new one in My Coach.', 'warn');
+    renderNav();
+    if (planChanged && !quiet) toast('Your coach updated your plan', 'info');
+    if (planChanged || ui.view === 'coach') { renderHeader(); renderView(); }
+  } catch (e) { if (!quiet) toast(e.message, 'error'); }
+}
+async function loadTrainers() {
+  try { const r = await api('/api/trainers'); trainersCache = r.trainers || []; }
+  catch (e) { if (trainersCache === null) trainersCache = []; }
+  return trainersCache;
+}
+async function chooseTrainer(id) {
+  if (!isMember()) return toast('Sign in as a member to choose a trainer', 'warn');
+  if (!id && coach.trainer && !(await confirmDialog({ title: 'Remove trainer', message: `Stop working with <b>${esc(coach.trainer.name)}</b>? They will no longer see your progress, and their targets and exercise plan will be removed from your app.`, confirmText: 'Remove trainer', danger: true }))) { if (ui.view === 'profile') renderProfile(); return; }
+  try {
+    const r = await api('/api/me/trainer', { method: 'PUT', body: { trainerId: id || null } });
+    session.user = r.user; storeSession();
+    await loadCoach();
+    toast(id ? `${r.trainer.name} is now your coach. They can see your progress.` : 'Trainer removed', id ? 'success' : 'info');
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); if (ui.view === 'profile') renderProfile(); }
+}
+
+/* ---------- Exercise check-offs (stored in the day's log, so trainers see them) ---------- */
+function exercisesFor(date, plan = activePlan()) {
+  if (!plan || !plan.exercises) return [];
+  if (plan.startedAt && date < plan.startedAt.slice(0, 10)) return [];
+  const dow = parseYmd(date).getDay();
+  return plan.exercises.filter((e) => !e.days.length || e.days.includes(dow));
+}
+function toggleExerciseDone(id) {
+  const l = ensureLog(ui.date);
+  l.done = l.done.includes(id) ? l.done.filter((x) => x !== id) : [...l.done, id];
+  const ex = (activePlan() || { exercises: [] }).exercises.find((e) => e.id === id);
+  pruneLog(ui.date); refresh();
+  if (ex && l.done.includes(id)) toast(`${ex.name} done ✅`);
+}
+
+/* ---------- Chat ---------- */
+function messagesHtml(messages, me, emptyText) {
+  if (!messages || !messages.length) return `<div class="rounded-xl border border-dashed border-amber-200 p-6 text-center text-sm muted dark:border-white/10">${emptyText}</div>`;
+  return messages.map((m) => {
+    const mine = m.from === me;
+    return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}"><div class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'grad-amber text-white rounded-br-md' : 'bg-amber-50 text-zinc-800 dark:bg-white/5 dark:text-zinc-100 rounded-bl-md'}"><div class="whitespace-pre-wrap break-words">${esc(m.text)}</div><div class="mt-1 text-[10px] ${mine ? 'text-white/80' : 'muted'}">${m.from === 'trainer' ? 'Coach' : 'Member'} • ${fmtDateTime(m.at)}</div></div></div>`;
+  }).join('');
+}
+function chatBox(id, placeholder, onSend) {
+  return `<div class="mt-3 flex items-end gap-2"><textarea id="${id}" rows="2" maxlength="2000" class="input resize-none" placeholder="${placeholder}" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();${onSend}}"></textarea><button class="btn btn-primary !h-[52px]" onclick="${onSend}" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></div><div class="mt-1 text-[10px] muted">Ctrl + Enter to send</div>`;
+}
+async function memberSend() {
+  const el = $('coachMsg'); const text = (el.value || '').trim(); if (!text) return;
+  el.disabled = true;
+  try { const r = await api('/api/coach/messages', { method: 'POST', body: { text } }); coach.messages = r.messages; saveCoachCache(); renderCoach(); setTimeout(() => { const t = $('coachThread'); if (t) t.scrollTop = t.scrollHeight; }, 30); }
+  catch (e) { el.disabled = false; toast(e.message, 'error'); }
+}
+
+/* ---------- Trainer directory ---------- */
+function trainerCardHtml(t, { selectable = false, current = false } = {}) {
+  return `<div class="rounded-2xl border ${current ? 'border-amber-400 ring-4 ring-amber-400/15' : 'border-amber-100 dark:border-white/5'} p-4">
+    <div class="flex items-start gap-3">
+      <span class="grad-amber flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-extrabold text-white">${initial(t.name)}</span>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-2"><div class="font-extrabold">${esc(t.name)}</div>${current ? '<span class="pill pill-green">Your coach</span>' : ''}${!t.accepting && !current ? '<span class="pill pill-gray">Not accepting</span>' : ''}</div>
+        <div class="text-sm font-semibold text-amber-700 dark:text-amber-400">${esc(t.specialization)}</div>
+        <div class="mt-0.5 text-xs muted">${t.experience ? `${t.experience} yr experience` : 'New coach'}${t.city ? ' • ' + esc(t.city) : ''}${t.languages && t.languages.length ? ' • ' + esc(t.languages.join(', ')) : ''}</div>
+        ${t.certifications ? `<div class="mt-1 text-xs"><i class="fa-solid fa-certificate text-amber-500"></i> ${esc(t.certifications)}</div>` : ''}
+        ${t.bio ? `<p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">${esc(t.bio)}</p>` : ''}
+      </div>
+    </div>
+    ${selectable ? `<button class="btn btn-primary btn-sm mt-3 w-full" ${t.accepting ? '' : 'disabled'} onclick="chooseTrainer('${t.id}')"><i class="fa-solid fa-handshake"></i>Choose ${esc(firstName(t.name))} as my coach</button>` : ''}
+  </div>`;
+}
+
+/* ---------- Member: My Coach view ---------- */
+function renderCoach() {
+  const el = $('view-coach');
+  const header = `<div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">My <span class="text-grad">Coach</span></h1><p class="text-sm muted">Your trainer's plan, targets, workouts and messages</p></div>`;
+  if (!isMember()) {
+    el.innerHTML = `<div class="fade-in space-y-5">${header}<div class="card card-pad text-center"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-2xl text-amber-600 dark:bg-amber-400/10"><i class="fa-solid fa-user-tie"></i></div>
+      <div class="mt-3 text-lg font-extrabold">Work with a personal trainer</div>
+      <p class="mx-auto mt-1 max-w-md text-sm muted">${cloud.available ? 'Sign in to choose a trainer. Your coach can follow your progress, set your targets and exercises, and send you instructions.' : 'Coaching needs the cloud version of MiyeeFit Pro, where you can sign in and choose a trainer.'}</p>
+      ${cloud.available ? '<div class="mt-4 flex justify-center gap-2"><button class="btn btn-primary" onclick="openAuth(\'signup\')"><i class="fa-solid fa-user-plus"></i>Create account</button><button class="btn btn-outline" onclick="openAuth(\'login\')">Sign in</button></div>' : ''}</div></div>`;
+    return;
+  }
+  const t = coach.trainer, plan = coach.plan;
+  if (!t) {
+    el.innerHTML = `<div class="fade-in space-y-5">${header}
+      <div class="card card-pad" data-tour="trainers"><div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-users mr-1 text-amber-500"></i>Choose your trainer</div><button class="btn btn-ghost btn-sm" onclick="trainersCache=null;renderCoach()"><i class="fa-solid fa-rotate"></i>Refresh</button></div>
+      <div id="trainerDir" class="mt-4">${trainersCache === null ? '<div class="p-6 text-center text-sm muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading trainers…</div>' : trainersCache.length ? `<div class="grid grid-cols-1 gap-3 md:grid-cols-2">${trainersCache.map((x) => trainerCardHtml(x, { selectable: true })).join('')}</div>` : '<div class="rounded-xl border border-dashed border-amber-200 p-8 text-center dark:border-white/10"><i class="fa-solid fa-user-slash text-2xl text-zinc-400"></i><div class="mt-2 font-bold">No trainers are listed yet</div><div class="text-sm muted">When a trainer creates a profile, they will appear here.</div></div>'}</div></div>
+      <div class="card card-pad"><div class="h-title">How coaching works</div><ul class="mt-3 space-y-2 text-sm muted"><li><i class="fa-solid fa-eye w-5 text-amber-500"></i>Your coach can see your logged progress (meals, steps, water, cardio, weight, score).</li><li><i class="fa-solid fa-bullseye w-5 text-amber-500"></i>They can set your daily steps, cardio, water, calorie and protein targets.</li><li><i class="fa-solid fa-dumbbell w-5 text-amber-500"></i>They can assign exercises for each day of the week.</li><li><i class="fa-solid fa-comments w-5 text-amber-500"></i>You can message each other here.</li><li><i class="fa-solid fa-user-xmark w-5 text-amber-500"></i>You can remove your coach at any time.</li></ul></div>
+    </div>`;
+    if (trainersCache === null) loadTrainers().then(() => { if (ui.view === 'coach') renderCoach(); });
+    return;
+  }
+  const ct = (plan && plan.targets) || {};
+  const own = targetsOwn();
+  const rows = [['steps', 'Daily steps', (v) => fmt(v), own.steps], ['cardio', 'Cardio per day', (v) => v + ' min', own.cardio], ['water', 'Water per day', (v) => fmt(v) + ' ml', own.water], ['calories', 'Calories per day', (v) => fmt(v) + ' kcal', own.kcal], ['protein', 'Protein per day', (v) => Math.round(v) + ' g', own.proteinMin]];
+  const todays = exercisesFor(ui.date);
+  const done = getLog(ui.date).done;
+  el.innerHTML = `<div class="fade-in space-y-5">
+    <div class="flex flex-wrap items-end justify-between gap-3">${header}<button class="btn btn-soft" onclick="loadCoach({read:true,quiet:false})"><i class="fa-solid fa-rotate"></i>Refresh</button></div>
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+      <div class="space-y-5 xl:col-span-2">
+        <div class="card card-pad" data-tour="coach-note">
+          <div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-clipboard-list mr-1 text-amber-500"></i>Instructions from your coach</div>${plan ? `<span class="text-[11px] muted">Updated ${fmtDateTime(plan.updatedAt)}</span>` : ''}</div>
+          ${plan && plan.note ? `<div class="mt-3 whitespace-pre-wrap rounded-xl border-l-4 border-amber-400 bg-amber-50 p-4 text-sm leading-relaxed dark:bg-amber-400/5">${esc(plan.note)}</div>` : '<p class="mt-3 text-sm muted">Your coach has not added instructions yet.</p>'}
+        </div>
+        <div class="card card-pad" data-tour="coach-workout">
+          <div class="flex flex-wrap items-center justify-between gap-2"><div class="h-title"><i class="fa-solid fa-dumbbell mr-1 text-rose-500"></i>Workout for ${ui.date === todayStr() ? 'today' : fmtDate(ui.date, { weekday: 'long', day: 'numeric', month: 'short' })}</div>${todays.length ? `<span class="pill ${todays.every((e) => done.includes(e.id)) ? 'pill-green' : 'pill-amber'}">${todays.filter((e) => done.includes(e.id)).length}/${todays.length} done</span>` : ''}</div>
+          <div class="mt-3 space-y-2">${todays.length ? todays.map((e) => `<label class="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-100 p-3 transition hover:bg-amber-50/60 dark:border-white/5 dark:hover:bg-white/[.03]"><input type="checkbox" class="mt-1 h-5 w-5 accent-emerald-500" ${done.includes(e.id) ? 'checked' : ''} onchange="toggleExerciseDone('${e.id}')"><div class="min-w-0"><div class="font-bold ${done.includes(e.id) ? 'line-through opacity-60' : ''}">${esc(e.name)}</div><div class="text-sm text-amber-700 dark:text-amber-400">${esc(e.detail)}</div>${e.notes ? `<div class="text-xs muted">${esc(e.notes)}</div>` : ''}</div></label>`).join('') : `<p class="text-sm muted">${plan && plan.exercises.length ? 'Rest day. Nothing is scheduled for this day.' : 'Your coach has not assigned exercises yet.'}</p>`}</div>
+          ${plan && plan.exercises.length ? `<details class="mt-4"><summary class="cursor-pointer text-sm font-semibold text-amber-700 dark:text-amber-400">See the full weekly plan</summary><div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">${[1, 2, 3, 4, 5, 6, 0].map((d) => { const xs = plan.exercises.filter((e) => !e.days.length || e.days.includes(d)); return `<div class="stat-box"><div class="text-xs font-bold uppercase muted">${DAY_NAMES[d]}</div><div class="mt-1 text-sm">${xs.length ? xs.map((e) => `• ${esc(e.name)} <span class="muted">${esc(e.detail)}</span>`).join('<br>') : '<span class="muted">Rest</span>'}</div></div>`; }).join('')}</div></details>` : ''}
+        </div>
+        <div class="card card-pad" data-tour="coach-chat">
+          <div class="h-title"><i class="fa-solid fa-comments mr-1 text-cyan-500"></i>Messages with ${esc(firstName(t.name))}</div>
+          <div id="coachThread" class="scroll-thin mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">${messagesHtml(coach.messages, 'member', 'No messages yet. Say hello to your coach!')}</div>
+          ${chatBox('coachMsg', 'Write a message to your coach…', 'memberSend()')}
+        </div>
+      </div>
+      <div class="space-y-5">
+        <div class="card card-pad">${trainerCardHtml(t, { current: true })}
+          <div class="mt-3 grid grid-cols-2 gap-2"><button class="btn btn-soft btn-sm" onclick="showTrainerPicker()"><i class="fa-solid fa-right-left"></i>Change</button><button class="btn btn-sm border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400" onclick="chooseTrainer(null)"><i class="fa-solid fa-user-xmark"></i>Remove</button></div></div>
+        <div class="card card-pad" data-tour="coach-targets">
+          <div class="h-title"><i class="fa-solid fa-bullseye mr-1 text-violet-500"></i>Your targets</div>
+          <div class="mt-3 divide-y divide-amber-100 dark:divide-white/5">${rows.map(([k, label, f, mine]) => `<div class="flex items-center justify-between py-2 text-sm"><span>${label}</span>${ct[k] ? `<span class="text-right"><b>${f(ct[k])}</b><span class="block text-[10px] font-bold uppercase text-amber-600">Set by coach</span></span>` : `<span class="text-right"><b>${f(mine)}</b><span class="block text-[10px] font-bold uppercase muted">Your own</span></span>`}</div>`).join('')}</div>
+          <p class="mt-2 text-[11px] muted">Targets your coach has not set come from your Profile, where you can change them.</p>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  const th = $('coachThread'); if (th) th.scrollTop = th.scrollHeight;
+  if (coach.unread) loadCoach({ read: true });
+}
+async function showTrainerPicker() {
+  openModal('<i class="fa-solid fa-users text-amber-500"></i> Choose a trainer', '<div class="p-6 text-center text-sm muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading trainers…</div>');
+  const list = await loadTrainers();
+  if ($('modal').classList.contains('hidden')) return;
+  $('modalBody').innerHTML = list.length ? `<div class="space-y-3">${list.map((x) => trainerCardHtml(x, { selectable: !coach.trainer || x.id !== coach.trainer.id, current: coach.trainer && x.id === coach.trainer.id })).join('')}</div>` : '<div class="p-6 text-center text-sm muted">No trainers are listed yet.</div>';
+  $('modalBody').querySelectorAll('button[onclick^="chooseTrainer"]').forEach((b) => b.addEventListener('click', () => closeModal()));
+}
+
+/* ---------- Trainer console ---------- */
+async function loadClients() {
+  trainerUi.loading = true;
+  try { const r = await api('/api/trainer/clients'); trainerUi.clients = r.clients || []; }
+  catch (e) { toast(e.message, 'error'); if (!trainerUi.clients) trainerUi.clients = []; }
+  trainerUi.loading = false;
+  renderNav();
+  if (ui.view === 'clients') renderClients();
+}
+function withClient(data, plan, fn) {
+  const savedState = state, savedPlan = planCtx;
+  try { state = data; planCtx = plan || { targets: {}, exercises: [] }; return fn(); }
+  finally { state = savedState; planCtx = savedPlan; }
+}
+function renderClients() {
+  const list = trainerUi.clients;
+  const unread = (list || []).filter((c) => c.unread).length;
+  $('view-clients').innerHTML = `<div class="fade-in space-y-5">
+    <div class="flex flex-wrap items-end justify-between gap-3"><div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Coach <span class="text-grad">Console</span></h1><p class="text-sm muted">Follow your clients' progress, set targets and exercises, and send instructions</p></div>
+      <button class="btn btn-soft" onclick="loadClients()"><i class="fa-solid fa-rotate ${trainerUi.loading ? 'fa-spin' : ''}"></i>Refresh</button></div>
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div class="card p-4"><div class="text-[11px] font-bold uppercase muted"><i class="fa-solid fa-users text-amber-500"></i> Clients</div><div class="mt-1 text-2xl font-extrabold">${list ? list.length : '…'}</div></div>
+      <div class="card p-4"><div class="text-[11px] font-bold uppercase muted"><i class="fa-solid fa-envelope text-cyan-500"></i> Unread threads</div><div class="mt-1 text-2xl font-extrabold">${list ? unread : '…'}</div></div>
+      <div class="card col-span-2 p-4 sm:col-span-1"><div class="text-[11px] font-bold uppercase muted"><i class="fa-solid fa-id-badge text-violet-500"></i> Your listing</div><button class="mt-1 text-sm font-bold text-amber-700 underline dark:text-amber-400" onclick="go('trainerProfile')">Edit trainer profile</button></div>
+    </div>
+    <div class="card card-pad" data-tour="clients">
+      <div class="h-title">Your clients</div>
+      <div class="mt-3">${list === null ? '<div class="p-6 text-center text-sm muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading clients…</div>' : list.length ? `<div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">${list.map((c) => `
+        <button class="flex items-center gap-3 rounded-2xl border border-amber-100 p-3 text-left transition hover:-translate-y-0.5 hover:border-amber-300 dark:border-white/5" onclick="openClient('${c.id}')">
+          <span class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 font-extrabold text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">${initial(c.name)}${c.unread ? '<span class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white dark:ring-ink"></span>' : ''}</span>
+          <span class="min-w-0 flex-1"><span class="block truncate font-bold">${esc(c.name)}</span><span class="block truncate text-xs muted">${esc(c.email)}</span><span class="block text-[11px] muted">Client since ${c.since ? fmtDate(c.since.slice(0, 10), { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}${c.unread ? ' • <b class="text-rose-500">new message</b>' : ''}</span></span>
+          <i class="fa-solid fa-chevron-right muted"></i></button>`).join('')}</div>` : '<div class="rounded-xl border border-dashed border-amber-200 p-8 text-center dark:border-white/10"><i class="fa-solid fa-user-plus text-2xl text-zinc-400"></i><div class="mt-2 font-bold">No clients yet</div><div class="mx-auto max-w-md text-sm muted">Members choose you from their Profile or My Coach page. Complete your trainer profile so your listing stands out.</div></div>'}</div>
+    </div>
+  </div>`;
+  if (list === null && !trainerUi.loading) loadClients();
+}
+async function openClient(id) {
+  ui.clientId = id; trainerUi.detail = null; trainerUi.draft = null;
+  go('client');
+  try {
+    const r = await api(`/api/trainer/clients/${id}?read=1`);
+    let data = null;
+    if (r.vault && r.vault.data) { try { data = sanitizeState(r.vault.data); } catch (e) { data = null; } }
+    trainerUi.detail = { ...r, data };
+    const p = r.plan || { targets: {}, exercises: [], note: '' };
+    trainerUi.draft = JSON.parse(JSON.stringify({ targets: p.targets || {}, exercises: p.exercises || [], note: p.note || '' }));
+    const c = (trainerUi.clients || []).find((x) => x.id === id); if (c) c.unread = false;
+    renderNav();
+  } catch (e) { toast(e.message, 'error'); trainerUi.detail = { error: e.message }; }
+  if (ui.view === 'client' && ui.clientId === id) renderClient();
+}
+function renderClient() {
+  const el = $('view-client');
+  const d = trainerUi.detail;
+  const back = '<button class="btn btn-ghost btn-sm" onclick="go(\'clients\')"><i class="fa-solid fa-arrow-left"></i>All clients</button>';
+  if (!ui.clientId) { go('clients'); return; }
+  if (!d) { el.innerHTML = `<div class="fade-in space-y-4">${back}<div class="card card-pad p-10 text-center muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading client…</div></div>`; return; }
+  if (d.error) { el.innerHTML = `<div class="fade-in space-y-4">${back}<div class="card card-pad text-center"><div class="font-bold">${esc(d.error)}</div></div></div>`; return; }
+  const c = d.client;
+  const today = todayStr();
+  let progress = '<div class="card card-pad text-center"><i class="fa-solid fa-hourglass-half text-2xl text-zinc-400"></i><div class="mt-2 font-bold">No progress data yet</div><div class="text-sm muted">This member has not synced any logs. Their progress appears here once they start tracking.</div></div>';
+  if (d.data) {
+    progress = withClient(d.data, d.plan, () => {
+      const p = state.profile, t = targets(), a = analyze(today), pr = projection();
+      const days = dateRange(today, 7).map((x) => ({ d: x, s: daySummary(x), sc: analyze(x).score }));
+      const logged = days.filter((x) => x.s.hasAny);
+      const avg = (fn) => logged.length ? sum(logged, fn) / logged.length : 0;
+      const sched = sum(days, (x) => exercisesFor(x.d).length), doneN = sum(days, (x) => exercisesFor(x.d).filter((e) => getLog(x.d).done.includes(e.id)).length);
+      const lastDay = Object.keys(state.logs).sort().pop();
+      const g = scoreGrade(a.score);
+      return `
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+        ${[['Weight', `${r1(p.currentWeight)} kg`, `Start ${r1(p.startWeight)} • Goal ${r1(p.targetWeight)} • ${Math.round(pr.pct * 100)}%`, 'fa-weight-scale', '#8B5CF6'],
+           ['Score today', `${a.score}`, `${g.label} • 7-day avg ${Math.round(avg((x) => x.sc))}`, 'fa-medal', g.color],
+           ['Avg intake', `${fmt(avg((x) => x.s.intake))} kcal`, `Target ${fmt(t.kcal)} • Deficit ${fmt(avg((x) => x.s.deficit))}`, 'fa-utensils', '#10B981'],
+           ['Avg steps', fmt(avg((x) => x.s.steps)), `Target ${fmt(t.steps)}`, 'fa-shoe-prints', '#F59E0B'],
+           ['Cardio (7 days)', `${Math.round(sum(days, (x) => x.s.cardioMin))} min`, `Target ${t.cardio} min/day`, 'fa-heart-pulse', '#F43F5E'],
+           ['Avg water', `${r2(avg((x) => x.s.water) / 1000)} L`, `Target ${r2(t.water / 1000)} L`, 'fa-droplet', '#06B6D4'],
+           ['Avg protein', `${r1(avg((x) => x.s.p))} g`, `Minimum ${Math.round(t.proteinMin)} g`, 'fa-seedling', '#8B5CF6'],
+           ['Exercises done', sched ? `${doneN}/${sched}` : '-', `Last log ${lastDay ? fmtDate(lastDay) : 'never'} • ${p.dietType === 'jain' ? 'Jain diet' : 'Vegetarian'}`, 'fa-dumbbell', '#EA580C']
+          ].map(([l, v, sub, ic, col]) => `<div class="card p-3"><div class="text-[11px] font-bold uppercase muted"><i class="fa-solid ${ic}" style="color:${col}"></i> ${l}</div><div class="mt-1 text-xl font-extrabold">${v}</div><div class="text-[11px] muted">${sub}</div></div>`).join('')}
+      </div>
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div class="card card-pad"><div class="h-title">Weight trend (30 days)</div><div class="mt-3 h-56"><canvas id="chClientWeight"></canvas></div></div>
+        <div class="card card-pad"><div class="h-title">Fitness score (14 days)</div><div class="mt-3 h-56"><canvas id="chClientScore"></canvas></div></div>
+      </div>
+      <div class="card card-pad"><div class="h-title">Today's audit</div><div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">${a.audits.map((x) => `<div class="flex items-start gap-3 rounded-xl border-l-4 ${stBorder(x.st)} bg-amber-50/60 p-2.5 dark:bg-white/[.03]"><i class="fa-solid ${x.icon} mt-0.5" style="color:${x.color}"></i><div class="min-w-0"><div class="text-sm font-bold">${esc(x.head)}</div><div class="text-xs muted">${esc(x.title)} • ${esc(x.metric)}</div></div></div>`).join('')}</div></div>
+      <div class="card card-pad"><div class="h-title">Last 7 days</div><div class="scroll-thin mt-3 overflow-x-auto"><table class="tbl w-full"><thead><tr><th>Date</th><th>Score</th><th>In</th><th>Burnt</th><th>Protein</th><th>Water</th><th>Steps</th><th>Cardio</th><th>Exercises</th><th>Weight</th></tr></thead><tbody>${days.slice().reverse().map((x) => { const ex = exercisesFor(x.d); return `<tr><td class="font-semibold">${fmtDate(x.d, { weekday: 'short', day: 'numeric', month: 'short' })}</td><td><b style="color:${scoreGrade(x.sc).color}">${x.s.hasAny ? x.sc : '-'}</b></td><td>${x.s.hasFood ? fmt(x.s.intake) : '-'}</td><td>${fmt(x.s.burnt)}</td><td>${x.s.hasFood ? r1(x.s.p) + 'g' : '-'}</td><td>${x.s.water ? r2(x.s.water / 1000) + 'L' : '-'}</td><td>${x.s.steps ? fmt(x.s.steps) : '-'}</td><td>${x.s.cardioMin ? x.s.cardioMin + 'm' : '-'}</td><td>${ex.length ? ex.filter((e) => getLog(x.d).done.includes(e.id)).length + '/' + ex.length : '-'}</td><td>${getLog(x.d).bio.weight ?? '-'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    });
+  }
+  const own = d.data ? withClient(d.data, { targets: {}, exercises: [] }, () => targets()) : null;
+  const dr = trainerUi.draft;
+  el.innerHTML = `<div class="fade-in space-y-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">${back}<button class="btn btn-soft btn-sm" onclick="openClient('${c.id}')"><i class="fa-solid fa-rotate"></i>Refresh</button></div>
+    <div class="flex items-center gap-4"><span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100 text-xl font-extrabold text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">${initial(c.name)}</span>
+      <div class="min-w-0"><h1 class="truncate text-2xl font-extrabold text-zinc-900 dark:text-white">${esc(c.name)}</h1><div class="truncate text-sm muted">${esc(c.email)}${d.vault ? ` • last synced ${fmtDateTime(d.vault.savedAt)}` : ''}</div></div></div>
+    ${progress}
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+      <div class="card card-pad xl:col-span-2" data-tour="plan-editor">
+        <div class="flex flex-wrap items-center justify-between gap-2"><div class="h-title"><i class="fa-solid fa-clipboard-list mr-1 text-amber-500"></i>Plan for ${esc(firstName(c.name))}</div><button class="btn btn-primary" onclick="savePlan()"><i class="fa-solid fa-floppy-disk"></i>Save plan</button></div>
+        <div class="mt-4"><label class="label">Daily targets <span class="normal-case font-normal">(leave blank to let the member set it)</span></label>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">${[['steps', 'Steps', 500, own && own.steps], ['cardio', 'Cardio (min)', 5, own && own.cardio], ['water', 'Water (ml)', 250, own && own.water], ['calories', 'Calories', 50, own && Math.round(own.kcal)], ['protein', 'Protein (g)', 5, own && Math.round(own.proteinMin)]].map(([k, l, step, ph]) => `<div><div class="mb-1 text-[11px] font-semibold muted">${l}</div><input type="number" step="${step}" class="input" value="${dr.targets[k] ?? ''}" placeholder="${ph ? 'Own: ' + ph : ''}" oninput="trainerUi.draft.targets['${k}']=this.value===''?null:Number(this.value)"></div>`).join('')}</div></div>
+        <div class="mt-4"><label class="label" for="planNote">Instructions for the member</label><textarea id="planNote" rows="4" maxlength="1500" class="input" placeholder="e.g. Walk 10 minutes after every meal. Keep dinner before 8 PM. Add a katori of curd at lunch." oninput="trainerUi.draft.note=this.value">${esc(dr.note)}</textarea></div>
+        <div class="mt-4"><div class="flex flex-wrap items-center justify-between gap-2"><label class="label !mb-0">Exercises</label>
+          <div class="flex flex-wrap gap-1.5">${Object.keys(EXERCISE_PRESETS).map((k) => `<button class="btn btn-soft btn-sm" onclick="addPreset('${k}')"><i class="fa-solid fa-plus"></i>${k}</button>`).join('')}<button class="btn btn-outline btn-sm" onclick="addExerciseRow()"><i class="fa-solid fa-plus"></i>Custom</button></div></div>
+          <div id="exEditor" class="mt-3 space-y-2">${exerciseEditorHtml()}</div></div>
+      </div>
+      <div class="card card-pad" data-tour="client-chat">
+        <div class="h-title"><i class="fa-solid fa-comments mr-1 text-cyan-500"></i>Messages</div>
+        <div id="clientThread" class="scroll-thin mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">${messagesHtml(d.messages, 'trainer', `No messages yet. Send ${esc(firstName(c.name))} a welcome note.`)}</div>
+        ${chatBox('trainerMsgBox', 'Write a message…', 'trainerSend()')}
+      </div>
+    </div>
+    <datalist id="exerciseNames">${EXERCISE_LIBRARY.map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
+  </div>`;
+  const th = $('clientThread'); if (th) th.scrollTop = th.scrollHeight;
+  if (d.data) drawClientCharts(d.data, d.plan);
+}
+function drawClientCharts(data, plan) {
+  withClient(data, plan, () => {
+    const p = state.profile, today = todayStr(), cc = chartColors();
+    const days = dateRange(today, 30);
+    const weights = days.map((x) => getLog(x).bio.weight || null);
+    const traj = days.map((x) => { const n = daysBetween(p.startDate, x); return n < 0 ? null : r2(Math.max(p.targetWeight, p.startWeight - p.weeklyRate * n / 7)); });
+    mkChart('chClientWeight', { type: 'line', data: { labels: days.map((x) => fmtDate(x)), datasets: [
+      { label: 'Weight (kg)', data: weights, borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,.12)', fill: 'start', tension: .35, spanGaps: true, pointRadius: 3, borderWidth: 2.5 },
+      { label: 'Target path', data: traj, borderColor: '#F59E0B', borderDash: [6, 5], pointRadius: 0, borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: cc.text } } }, scales: baseScales('') } });
+    const sd = dateRange(today, 14);
+    mkChart('chClientScore', { type: 'line', data: { labels: sd.map((x) => fmtDate(x)), datasets: [{ label: 'Score', data: sd.map((x) => daySummary(x).hasAny ? analyze(x).score : null), borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,.15)', fill: true, tension: .35, spanGaps: true, pointRadius: 3, borderWidth: 2.5 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { ...baseScales(''), y: { ...baseScales('').y, min: 0, max: 100 } } } });
+  });
+}
+const EXERCISE_LIBRARY = ['Brisk walk', 'Bodyweight squats', 'Push-ups (knee or full)', 'Plank', 'Lunges', 'Glute bridge', 'Surya Namaskar', 'Skipping', 'Mountain climbers', 'Dumbbell rows', 'Dumbbell shoulder press', 'Burpees', 'Step-ups', 'Wall sit', 'Bicycle crunches', 'Superman hold', 'Jumping jacks', 'Stationary cycling', 'Stair climbing', 'Stretching & mobility', 'Bhujangasana (cobra pose)', 'Vrikshasana (tree pose)', 'Pranayama (breathing)'];
+const EXERCISE_PRESETS = {
+  'Walking plan': [['Brisk walk', '30 min, conversational pace', [1, 2, 3, 4, 5, 6]], ['10-minute walk after meals', 'After lunch and dinner', []]],
+  'Home strength': [['Bodyweight squats', '3 × 15', [1, 3, 5]], ['Push-ups (knee or full)', '3 × 10', [1, 3, 5]], ['Glute bridge', '3 × 15', [1, 3, 5]], ['Plank', '3 × 30 sec', [1, 3, 5]], ['Lunges', '3 × 10 each leg', [2, 4]]],
+  'Fat-loss circuit': [['Jumping jacks', '3 rounds × 40 sec', [2, 4, 6]], ['Mountain climbers', '3 rounds × 30 sec', [2, 4, 6]], ['Bodyweight squats', '3 rounds × 15', [2, 4, 6]], ['Skipping', '5 × 1 min', [2, 4, 6]]],
+  'Yoga & mobility': [['Surya Namaskar', '12 rounds', [0, 1, 2, 3, 4, 5, 6]], ['Bhujangasana (cobra pose)', '3 × 30 sec', [0, 3]], ['Pranayama (breathing)', '10 min', [0, 1, 2, 3, 4, 5, 6]]]
+};
+function exerciseEditorHtml() {
+  const xs = trainerUi.draft.exercises;
+  if (!xs.length) return '<div class="rounded-xl border border-dashed border-amber-200 p-4 text-center text-sm muted dark:border-white/10">No exercises yet. Add a preset or a custom exercise.</div>';
+  return xs.map((e, i) => `<div class="rounded-xl border border-amber-100 p-3 dark:border-white/5">
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1.2fr_1fr_auto]">
+      <input class="input" list="exerciseNames" placeholder="Exercise" value="${esc(e.name)}" oninput="trainerUi.draft.exercises[${i}].name=this.value">
+      <input class="input" placeholder="Sets × reps or duration" value="${esc(e.detail)}" oninput="trainerUi.draft.exercises[${i}].detail=this.value">
+      <button class="btn btn-ghost !px-3 text-rose-500" onclick="trainerUi.draft.exercises.splice(${i},1);$('exEditor').innerHTML=exerciseEditorHtml()" aria-label="Remove exercise"><i class="fa-solid fa-trash-can"></i></button>
+    </div>
+    <div class="mt-2 flex flex-wrap items-center gap-1">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button class="chip !px-2.5 ${e.days.includes(d) ? 'active' : ''}" onclick="toggleExDay(${i},${d})">${DAY_NAMES[d]}</button>`).join('')}<span class="ml-1 text-[11px] muted">${e.days.length ? '' : 'No day picked = every day'}</span></div>
+    <input class="input mt-2 !py-1.5 !text-xs" placeholder="Notes (optional), e.g. keep back straight" value="${esc(e.notes || '')}" oninput="trainerUi.draft.exercises[${i}].notes=this.value">
+  </div>`).join('');
+}
+function toggleExDay(i, d) { const e = trainerUi.draft.exercises[i]; e.days = e.days.includes(d) ? e.days.filter((x) => x !== d) : [...e.days, d].sort(); $('exEditor').innerHTML = exerciseEditorHtml(); }
+function addExerciseRow() { trainerUi.draft.exercises.push({ id: uid().replace(/[^a-z0-9]/g, '').slice(0, 12), name: '', detail: '', notes: '', days: [] }); $('exEditor').innerHTML = exerciseEditorHtml(); }
+function addPreset(k) { EXERCISE_PRESETS[k].forEach(([name, detail, days]) => trainerUi.draft.exercises.push({ id: uid().replace(/[^a-z0-9]/g, '').slice(0, 12), name, detail, notes: '', days })); $('exEditor').innerHTML = exerciseEditorHtml(); toast(`${k} added. Remember to save the plan.`, 'info'); }
+async function savePlan() {
+  const dr = trainerUi.draft;
+  dr.exercises = dr.exercises.filter((e) => (e.name || '').trim());
+  try {
+    const r = await api(`/api/trainer/clients/${ui.clientId}/plan`, { method: 'PUT', body: dr });
+    trainerUi.detail.plan = r.plan;
+    trainerUi.draft = JSON.parse(JSON.stringify({ targets: r.plan.targets, exercises: r.plan.exercises, note: r.plan.note }));
+    renderClient(); toast('Plan saved. Your client will see it the next time they open the app.');
+  } catch (e) { toast(e.message, 'error'); }
+}
+async function trainerSend() {
+  const el = $('trainerMsgBox'); const text = (el.value || '').trim(); if (!text) return;
+  el.disabled = true;
+  try {
+    const r = await api(`/api/trainer/clients/${ui.clientId}/messages`, { method: 'POST', body: { text } });
+    trainerUi.detail.messages = r.messages;
+    $('clientThread').innerHTML = messagesHtml(r.messages, 'trainer', '');
+    $('clientThread').scrollTop = $('clientThread').scrollHeight;
+    el.value = ''; el.disabled = false; el.focus();
+  } catch (e) { el.disabled = false; toast(e.message, 'error'); }
+}
+
+/* ---------- Trainer profile ---------- */
+async function renderTrainerProfile() {
+  const el = $('view-trainerProfile');
+  if (!trainerUi.profile) {
+    el.innerHTML = '<div class="card card-pad p-10 text-center muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading profile…</div>';
+    try { trainerUi.profile = (await api('/api/trainer/profile')).profile; } catch (e) { el.innerHTML = `<div class="card card-pad text-center">${esc(e.message)}</div>`; return; }
+    if (ui.view !== 'trainerProfile') return;
+  }
+  const p = trainerUi.profile;
+  const f = (k, label, extra = '', type = 'text') => `<div><label class="label" for="tp_${k}">${label}</label><input id="tp_${k}" type="${type}" class="input" value="${esc(Array.isArray(p[k]) ? p[k].join(', ') : p[k] ?? '')}" ${extra}></div>`;
+  el.innerHTML = `<div class="fade-in space-y-5">
+    <div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Trainer <span class="text-grad">Profile</span></h1><p class="text-sm muted">This is how members see you when they choose a coach</p></div>
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-5">
+      <div class="card card-pad xl:col-span-3" data-tour="trainer-form">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          ${f('name', 'Display name', 'maxlength="60"')}
+          ${f('specialization', 'Specialization', 'maxlength="80" placeholder="e.g. Weight loss & strength"')}
+          ${f('experience', 'Years of experience', 'min="0" max="60"', 'number')}
+          ${f('city', 'City', 'maxlength="60"')}
+          ${f('certifications', 'Certifications', 'maxlength="160" placeholder="e.g. ACE CPT, Yoga Alliance RYT-200"')}
+          ${f('languages', 'Languages (comma separated)', 'placeholder="English, Hindi"')}
+          <div class="sm:col-span-2"><label class="label" for="tp_bio">About you</label><textarea id="tp_bio" rows="4" maxlength="600" class="input" placeholder="Your coaching style, who you help best, results you have achieved…">${esc(p.bio || '')}</textarea></div>
+          <label class="flex items-center gap-3 text-sm font-semibold sm:col-span-2"><span id="tpAccepting" class="switch ${p.accepting ? 'on' : ''}" role="switch" aria-checked="${p.accepting}" onclick="this.classList.toggle('on')"></span>Accepting new clients</label>
+        </div>
+        <button class="btn btn-primary mt-4" onclick="saveTrainerProfile()"><i class="fa-solid fa-floppy-disk"></i>Save profile</button>
+      </div>
+      <div class="space-y-5 xl:col-span-2">
+        <div class="card card-pad"><div class="h-title mb-3">Preview</div>${trainerCardHtml({ ...p, name: p.name || session.user.name })}</div>
+        <div id="cloudCard" class="card card-pad">${cloudCardHtml()}</div>
+      </div>
+    </div>
+  </div>`;
+}
+async function saveTrainerProfile() {
+  const body = { name: $('tp_name').value, specialization: $('tp_specialization').value, experience: $('tp_experience').value, city: $('tp_city').value, certifications: $('tp_certifications').value, languages: $('tp_languages').value, bio: $('tp_bio').value, accepting: $('tpAccepting').classList.contains('on') };
+  if (!body.name.trim()) return toast('Please enter your display name', 'warn');
+  try {
+    const r = await api('/api/trainer/profile', { method: 'PUT', body });
+    trainerUi.profile = r.profile; session.user = r.user; storeSession();
+    renderAll(); toast('Trainer profile saved. Members see the update in a minute or so.');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ---------- Realistic next-meal suggestion ---------- */
+const MEAL_SHARE = { early: 0.06, breakfast: 0.25, lunch: 0.32, snack: 0.12, dinner: 0.25 };
+const LIGHT_OPTIONS = [[['green_salad', 1], ['buttermilk', 1]], [['veg_soup', 1]], [['green_tea', 1], ['makhana', 0.5]], [['papaya', 1]]];
+const dietOk = (f) => state.profile.dietType !== 'jain' || f.tags.includes('j');
+function allowedTemplates() { return state.profile.dietType === 'jain' ? PLAN_TEMPLATES.filter((t) => t.jain) : PLAN_TEMPLATES; }
+function nextMealSuggestion(date = ui.date) {
+  const t = targets(), s = daySummary(date), log = getLog(date);
+  const order = ['early', 'breakfast', 'lunch', 'snack', 'dinner'];
+  const isToday = date === todayStr();
+  const hour = new Date().getHours() + new Date().getMinutes() / 60;
+  const logged = new Set(log.foods.map((f) => f.meal));
+  const open = order.filter((m) => !logged.has(m));
+  if (!open.length) return { done: true };
+  const hourOf = (m) => MEALS.find((x) => x.id === m).hour;
+  let meal = isToday ? open.find((m) => hourOf(m) + 2.5 >= hour) : open[0];
+  if (!meal) return { done: true };
+  const rest = open.filter((m) => order.indexOf(m) >= order.indexOf(meal));
+  const remKcal = Math.max(0, t.kcal - s.intake), remP = Math.max(0, t.proteinMin - s.p);
+  const shareSum = sum(rest, (m) => MEAL_SHARE[m]) || 1;
+  const budget = remKcal * MEAL_SHARE[meal] / shareSum, pBudget = remP * MEAL_SHARE[meal] / shareSum;
+  const build = (opt, tplName) => {
+    const items = opt.map(([fid, q]) => ({ food: findFood(fid), qty: q })).filter((x) => x.food && dietOk(x.food));
+    if (!items.length || items.length < opt.length) return null;
+    const base = sum(items, (i) => i.food.kcal * i.qty) || 1;
+    const factor = budget > 60 ? clamp(budget / base, 0.6, 1.6) : 1;
+    items.forEach((i) => { i.qty = Math.max(0.5, Math.round(i.qty * factor * 2) / 2); });
+    const kcal = sum(items, (i) => i.food.kcal * i.qty), p = sum(items, (i) => i.food.p * i.qty);
+    return { items, kcal, p, tplName };
+  };
+  let options = [];
+  if (remKcal < 120) options = LIGHT_OPTIONS.map((o) => build(o, 'Light & filling')).filter(Boolean);
+  else allowedTemplates().forEach((tp) => (tp.meals[meal] || []).forEach((o) => { const b = build(o, tp.name); if (b) options.push(b); }));
+  const seen = new Set();
+  options = options.filter((o) => { const k = o.items.map((i) => i.food.id).sort().join('|'); if (seen.has(k)) return false; seen.add(k); return true; })
+    .map((o) => ({ ...o, fit: Math.abs(o.kcal - budget) / Math.max(80, budget) + Math.max(0, pBudget - o.p) / Math.max(10, pBudget) * 0.8 }))
+    .sort((a, b) => a.fit - b.fit).slice(0, 3);
+  return { meal, budget, remKcal, remP, pBudget, options, light: remKcal < 120 };
+}
+function suggestionCardHtml() {
+  const sg = nextMealSuggestion();
+  ui.suggestion = sg;
+  const jain = state.profile.dietType === 'jain';
+  const head = `<div class="flex flex-wrap items-center justify-between gap-2"><div class="h-title"><i class="fa-solid fa-bowl-food mr-1 text-emerald-500"></i>${sg.done ? 'Meals complete' : `Suggested ${mealName(sg.meal)}`}</div><span class="pill ${jain ? 'pill-violet' : 'pill-green'}">${jain ? 'Jain' : 'Pure Veg'}</span></div>`;
+  if (sg.done) return `${head}<p class="mt-3 text-sm muted">All of today's main meals are logged. ${daySummary(ui.date).p < targets().proteinMin ? 'You are still short on protein: a glass of buttermilk or a katori of curd is a light way to top up.' : 'Great job staying on plan!'}</p>`;
+  return `${head}
+    <div class="mt-1 text-xs muted">${sg.light ? 'You have almost reached your calories for today, so here are light options if you are hungry.' : `About <b>${fmt(sg.budget)} kcal</b> and <b>${Math.round(sg.pBudget)} g protein</b> fits this meal (${fmt(sg.remKcal)} kcal and ${Math.round(sg.remP)} g protein left today).`}</div>
+    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">${sg.options.map((o, i) => `<div class="flex flex-col rounded-xl border border-amber-100 p-3 dark:border-white/5">
+      <div class="flex-1 space-y-0.5 text-sm">${o.items.map((it) => `<div><b>${it.qty}×</b> ${esc(it.food.name)} <span class="text-[11px] muted">(${esc(it.food.serving)})</span></div>`).join('')}</div>
+      <div class="mt-2 text-[11px] muted"><b class="text-emerald-600 dark:text-emerald-400">${fmt(o.kcal)} kcal</b> • ${r1(o.p)} g protein • ${esc(o.tplName)}</div>
+      <button class="btn btn-outline btn-sm mt-2" onclick="addSuggestion(${i})"><i class="fa-solid fa-plus"></i>Add to ${mealName(sg.meal)}</button></div>`).join('') || '<div class="text-sm muted">No matching meals found.</div>'}</div>`;
+}
+function addSuggestion(i) {
+  const sg = ui.suggestion; const o = sg && sg.options[i]; if (!o) return;
+  o.items.forEach((it) => addFood(it.food.id, sg.meal, it.qty, ui.date, true));
+  refresh(); toast(`${mealName(sg.meal)} added: ${fmt(o.kcal)} kcal, ${r1(o.p)} g protein`);
+}
+function coachTodayCardHtml() {
+  if (!isMember()) return `<div class="h-title"><i class="fa-solid fa-user-tie mr-1 text-amber-500"></i>Personal coaching</div><p class="mt-2 text-sm muted">${cloud.available ? 'Sign in and choose a trainer to get targets, workouts and instructions from a real coach.' : 'Coaching is available on the cloud version of MiyeeFit Pro.'}</p>${cloud.available ? '<button class="btn btn-soft btn-sm mt-3" onclick="openAuth(\'login\')"><i class="fa-solid fa-right-to-bracket"></i>Sign in</button>' : ''}`;
+  if (!coach.trainer) return `<div class="h-title"><i class="fa-solid fa-user-tie mr-1 text-amber-500"></i>Personal coaching</div><p class="mt-2 text-sm muted">You have not chosen a trainer yet.</p><button class="btn btn-soft btn-sm mt-3" onclick="go('coach')"><i class="fa-solid fa-users"></i>Find a trainer</button>`;
+  const todays = exercisesFor(ui.date), done = getLog(ui.date).done;
+  return `<div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-user-tie mr-1 text-amber-500"></i>From Coach ${esc(firstName(coach.trainer.name))}</div>${coach.unread ? `<span class="pill pill-red">${coach.unread} new</span>` : ''}</div>
+    ${coach.plan && coach.plan.note ? `<p class="mt-2 line-clamp-3 text-sm text-zinc-600 dark:text-zinc-300">${esc(coach.plan.note)}</p>` : '<p class="mt-2 text-sm muted">No instructions yet.</p>'}
+    <div class="mt-3 text-sm"><b>${todays.filter((e) => done.includes(e.id)).length}/${todays.length}</b> exercises done ${ui.date === todayStr() ? 'today' : 'this day'}</div>
+    <button class="btn btn-soft btn-sm mt-3" onclick="go('coach')"><i class="fa-solid fa-arrow-right"></i>Open My Coach</button>`;
+}
+
+/* ---------- User Guide & interactive tour ---------- */
+const TOURS = {
+  member: [
+    { view: 'dashboard', sel: '#dateBar', title: 'Pick any day', body: 'Use Prev, Today, Next or the calendar to view or log any past day. Everything you log is saved against the selected date.' },
+    { view: 'dashboard', sel: '[data-tour="kpis"]', title: 'Your daily dashboard', body: 'Steps, water, calorie balance and weight progress at a glance. Use the quick buttons (+500 steps, +250 ml) to log in one tap.' },
+    { view: 'dashboard', sel: '[data-tour="suggest"]', title: 'Realistic meal suggestions', body: 'MiyeeFit suggests your next meal based on the time of day and the calories and protein you have left. Jain users only see Jain-friendly food.' },
+    { view: 'dashboard', sel: '#scoreBadge', title: 'Daily Fitness Score', body: 'Your score out of 100 blends deficit, protein, water, steps, cardio, weight trend and sleep. Tap it to see what to improve.' },
+    { view: 'tracker', sel: '[data-tour="food"]', title: 'Log food', body: 'Search 68 vegetarian foods, choose the meal and quantity, then press +. Tap the Jain chip to see only Jain-friendly items.' },
+    { view: 'tracker', sel: '[data-tour="cardio"]', title: 'Log workouts', body: 'Pick an activity, duration and intensity. Calories burnt are calculated from your weight automatically.' },
+    { view: 'insights', sel: '[data-tour="audits"]', title: 'Scope of Improvement', body: 'Each card checks one habit and tells you exactly how to fix it, often with a one-tap button.' },
+    { view: 'planner', sel: '[data-tour="templates"]', title: 'Diet planner', body: 'Choose a vegetarian or Jain plan. It scales to your calorie target, and you can swap any meal or add it to your log.' },
+    { view: 'profile', sel: '[data-tour="diet-trainer"]', title: 'Diet type and trainer', body: 'Set Pure Vegetarian or Jain, and choose your trainer from the list. If no trainers are listed yet, the list stays empty.' },
+    { view: 'profile', sel: '[data-tour="goals"]', title: 'Your own targets', body: 'Set your step, water, cardio and calorie goals here. Targets set by your coach are locked and marked "Set by coach".' },
+    { view: 'coach', sel: '#view-coach', title: 'My Coach', body: 'See your coach\'s instructions, tick off today\'s exercises and message your coach. Your coach sees your progress automatically.' },
+    { view: 'vault', sel: '#cloudCard', title: 'Cloud account and backups', body: 'Your data saves to the cloud automatically when signed in. You can also export JSON backups and a CSV progress report.' },
+    { view: 'guide', sel: '#helpBtn', title: 'Help any time', body: 'Open the User Guide from the ? button to replay this tour or read how each feature works.' }
+  ],
+  trainer: [
+    { view: 'clients', sel: '[data-tour="clients"]', title: 'Your clients', body: 'Members who choose you appear here. A red dot means they sent a new message. Open a client to see their progress.' },
+    { view: 'trainerProfile', sel: '[data-tour="trainer-form"]', title: 'Your trainer listing', body: 'Members see this profile when choosing a coach. Add your specialization, experience, certifications and bio, and turn off "Accepting new clients" when you are full.' },
+    { view: 'guide', sel: '[data-tour="trainer-guide"]', title: 'Coaching a client', body: 'In a client\'s page you see their weight trend, score, 7-day table and today\'s audit. Below it you set daily targets, assign exercises per weekday, write instructions and chat.' },
+    { view: 'guide', sel: '#helpBtn', title: 'Help any time', body: 'Open this guide from the ? button whenever you need it.' }
+  ]
+};
+let tour = null;
+function tourRole() { return isTrainer() ? 'trainer' : 'member'; }
+function tourSeen() { try { return JSON.parse(localStorage.getItem(TOUR_KEY) || '{}'); } catch (e) { return {}; } }
+function markTourSeen() { try { const s = tourSeen(); s[tourRole()] = true; localStorage.setItem(TOUR_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ } }
+function maybeAutoTour() { if (!tourSeen()[tourRole()] && $('authScreen').classList.contains('hidden')) setTimeout(() => { if (!tour && $('authScreen').classList.contains('hidden')) startTour(); }, 700); }
+function startTour() {
+  closeModal();
+  tour = { steps: TOURS[tourRole()], i: 0 };
+  $('tourLayer').classList.remove('hidden');
+  showTourStep();
+}
+function endTour() {
+  tour = null; markTourSeen();
+  $('tourLayer').classList.add('hidden');
+  toast('Tour finished. Replay it any time from the ? button.', 'info');
+}
+function tourNav(d) { if (!tour) return; tour.i += d; if (tour.i >= tour.steps.length) return endTour(); tour.i = Math.max(0, tour.i); showTourStep(); }
+function showTourStep() {
+  const step = tour.steps[tour.i];
+  if (ui.view !== step.view) go(step.view);
+  setTimeout(() => {
+    if (!tour) return;
+    let el = document.querySelector(step.sel);
+    if (el && el.offsetParent === null && step.sel === '#scoreBadge') el = null;
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    setTimeout(() => positionTour(el, step), 60);
+  }, 260);
+}
+function positionTour(el, step) {
+  if (!tour) return;
+  const spot = $('tourSpot'), pop = $('tourPop');
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const r = el && el.offsetParent !== null ? el.getBoundingClientRect() : null;
+  if (r && r.width) {
+    const pad = 6, top = Math.max(4, r.top - pad), height = Math.min(r.height + pad * 2, vh - top - 4);
+    Object.assign(spot.style, { display: 'block', left: r.left - pad + 'px', top: top + 'px', width: r.width + pad * 2 + 'px', height: height + 'px' });
+  } else Object.assign(spot.style, { display: 'block', left: vw / 2 + 'px', top: vh / 2 + 'px', width: '0px', height: '0px' });
+  const n = tour.steps.length;
+  pop.innerHTML = `<div class="text-[11px] font-bold uppercase tracking-widest text-amber-600">Step ${tour.i + 1} of ${n}</div>
+    <div class="mt-1 text-lg font-extrabold text-zinc-900 dark:text-white">${esc(step.title)}</div>
+    <p class="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">${esc(step.body)}</p>
+    <div class="mt-3 flex gap-1">${tour.steps.map((_, i) => `<span class="h-1.5 flex-1 rounded-full ${i <= tour.i ? 'bg-amber-500' : 'bg-amber-100 dark:bg-white/10'}"></span>`).join('')}</div>
+    <div class="mt-4 flex items-center justify-between gap-2"><button class="btn btn-ghost btn-sm" onclick="endTour()">Skip tour</button>
+      <div class="flex gap-2">${tour.i ? '<button class="btn btn-soft btn-sm" onclick="tourNav(-1)"><i class="fa-solid fa-arrow-left"></i>Back</button>' : ''}<button class="btn btn-primary btn-sm" onclick="tourNav(1)">${tour.i === n - 1 ? 'Finish' : 'Next'}<i class="fa-solid fa-arrow-right"></i></button></div></div>`;
+  const pw = Math.min(360, vw - 24);
+  pop.style.width = pw + 'px';
+  const ph = pop.offsetHeight || 220;
+  let left, top;
+  if (r && r.width) {
+    left = clamp(r.left + r.width / 2 - pw / 2, 12, vw - pw - 12);
+    top = r.bottom + 14 + ph < vh ? r.bottom + 14 : r.top - 14 - ph > 0 ? r.top - 14 - ph : vh - ph - 12;
+  } else { left = (vw - pw) / 2; top = (vh - ph) / 2; }
+  Object.assign(pop.style, { left: left + 'px', top: Math.max(12, top) + 'px' });
+}
+window.addEventListener('resize', () => { if (tour) showTourStep(); });
+
+function renderGuide() {
+  const trainer = isTrainer();
+  const sec = (icon, title, items) => `<details class="card card-pad group" ${title.startsWith('Getting') ? 'open' : ''}><summary class="flex cursor-pointer list-none items-center gap-3 font-extrabold"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-400/10"><i class="fa-solid ${icon}"></i></span>${title}<i class="fa-solid fa-chevron-down ml-auto text-xs muted transition group-open:rotate-180"></i></summary><ol class="mt-4 list-decimal space-y-2 pl-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">${items.map((x) => `<li>${x}</li>`).join('')}</ol></details>`;
+  const member = [
+    sec('fa-rocket', 'Getting started', ['Create an account (or continue without one to keep data on this device only).', 'Open <b>Profile</b> and enter your age, height, current and target weight, and choose <b>Pure Vegetarian</b> or <b>Jain</b>.', 'Your calorie, protein, water and step targets are calculated automatically.', 'Optional: choose a trainer in Profile or My Coach.', 'Use <b>Load Sample 14-Day History</b> on an empty account to explore the app with demo data.']),
+    sec('fa-list-check', 'Logging your day', ['Pick the date at the top (Prev, Today, Next or the calendar).', 'On the Dashboard, tap +500 / +1,000 steps and +250 ml water as you go.', 'In <b>Daily Tracker</b>, search a food, choose the meal and quantity, and press +.', 'Log workouts with activity, minutes and intensity; calories are calculated for you.', 'Each morning, save your weight, waist, sleep and energy in the check-in.']),
+    sec('fa-bowl-food', 'Diet suggestions & Jain option', ['The Dashboard suggests a realistic next meal that fits the calories and protein you have left.', 'Set <b>Diet preference</b> to Jain in Profile to see only Jain-friendly food (no onion, garlic or root vegetables) in suggestions and plans.', 'In <b>Veg Diet Planner</b>, choose a plan, pick your calorie level, swap meals you do not like, and add a meal or the whole day to your log.', 'The cheat sheet ranks the best vegetarian protein and fibre sources per 100 kcal.']),
+    sec('fa-wand-magic-sparkles', 'Score & Scope of Improvement', ['Your Daily Fitness Score (0 to 100) appears in the header.', 'Open <b>Scope of Improvement</b> to see red, amber and green audits with exact fixes.', 'Short on protein? Tap a suggested food to add it instantly.', 'Use the 7-day table and score trend to spot patterns.']),
+    sec('fa-user-tie', 'Working with your trainer', ['Choose a trainer in <b>Profile</b> or <b>My Coach</b>. If none are listed yet, the list stays empty.', 'Your trainer sees your logged progress and can set your steps, cardio, water, calories and protein.', 'Targets set by your coach show "Set by coach" and are locked; anything they leave blank you set yourself in Profile.', 'Tick off exercises in <b>My Coach</b> each day; your coach sees what you completed.', 'Read your coach\'s instructions and message them from My Coach. You can change or remove your coach any time.']),
+    sec('fa-cloud', 'Sync, backups & privacy', ['When signed in, every change saves on this device and to your cloud account automatically.', 'Sign in on another device with the same email to get your data there.', 'Export a JSON backup or CSV report from <b>Data Vault</b> at any time.', 'Passwords cannot be recovered, so keep a backup and remember your password.'])
+  ];
+  const coachSecs = [
+    sec('fa-rocket', 'Getting started as a coach', ['Create an account and choose <b>Trainer / Coach</b>.', 'Complete your <b>Trainer Profile</b>: specialization, experience, certifications, languages, city and bio.', 'Members find you in their Profile or My Coach page and choose you as their coach.', 'Turn off <b>Accepting new clients</b> when you are fully booked.']),
+    sec('fa-chart-line', 'Following client progress', ['Open <b>Clients</b> and pick a member.', 'See weight trend, Fitness Score, average intake, steps, water, protein and cardio.', 'Today\'s audit shows exactly where the member is falling short.', 'The 7-day table shows what they logged each day, including exercises completed.']),
+    sec('fa-bullseye', 'Setting targets & exercises', ['In the client page, enter daily targets for steps, cardio, water, calories and protein. Leave a box blank to let the member set it.', 'Add exercises from presets (Walking plan, Home strength, Fat-loss circuit, Yoga & mobility) or create custom ones.', 'Pick the weekdays for each exercise; no day picked means every day.', 'Write instructions; they appear at the top of the member\'s My Coach page.', 'Press <b>Save plan</b>. The member sees it the next time they open the app.']),
+    sec('fa-comments', 'Messaging', ['Use the Messages panel on the client page to send instructions or encouragement.', 'A red dot on the client list means a new message from that member.'])
+  ];
+  $('view-guide').innerHTML = `<div class="fade-in space-y-5">
+    <div class="overflow-hidden rounded-3xl grad-amber p-6 text-white sm:p-8">
+      <div class="text-xs font-bold uppercase tracking-widest opacity-80">User Guide</div>
+      <h1 class="mt-1 text-3xl font-extrabold">How to use MiyeeFit Pro${trainer ? ' as a coach' : ''}</h1>
+      <p class="mt-2 max-w-xl text-white/90">${trainer ? 'Follow your clients, set their targets and workouts, and keep them motivated.' : 'Track food, steps, water, workouts and weight, get realistic vegetarian or Jain diet suggestions, and work with a trainer.'}</p>
+      <button class="btn mt-4 bg-white font-bold text-amber-700 hover:bg-amber-50" onclick="startTour()"><i class="fa-solid fa-play"></i>Start interactive tour</button>
+    </div>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-tour="${trainer ? 'trainer-guide' : 'guide'}">${(trainer ? coachSecs : member).join('')}</div>
+  </div>`;
+}
+
 /* ---------- Boot ---------- */
 function applyTheme() { document.documentElement.classList.toggle('dark', state.settings.theme === 'dark'); }
 function renderAll() { renderHeader(); renderAccountBtn(); renderBanner(); renderNav(); go(ui.view); }
 
 window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && v !== ui.view) go(v); });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
+  if (e.key === 'Escape' && tour) endTour();
+  else if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
   else if (e.key === 'Escape' && !$('authScreen').classList.contains('hidden') && !authUi.gate) closeAuth(false);
   if (e.target.matches('input, select, textarea')) return;
   if (e.key === 'ArrowLeft' && e.altKey) shiftDate(-1);
@@ -2317,7 +3004,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('storage', (e) => {
   if (e.key === SESSION_KEY) { session = loadSession(); renderAll(); if (!session && cloud.available) openAuth('login', { gate: true }); else closeAuth(false); return; }
   if (e.key === STORAGE_KEY && e.newValue) { try { state = sanitizeState(JSON.parse(e.newValue)); applyTheme(); renderAll(); } catch (err) { /* ignore foreign writes */ } } });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && session && Date.now() - cloud.lastPullCheck > 30000) pullVault(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && session && Date.now() - cloud.lastPullCheck > 30000) { cloud.lastPullCheck = Date.now(); if (isTrainer()) loadClients(); else pullVault(); } });
 window.addEventListener('online', () => { if (session) { if (cloud.dirty) pushVault(); else pullVault(); } });
 let lastDay = todayStr();
 setInterval(() => {
@@ -2329,15 +3016,17 @@ setInterval(() => {
 (function boot() {
   applyTheme();
   const v = location.hash.slice(1);
-  ui.view = VIEWS.some((x) => x.id === v) ? v : 'dashboard';
+  ui.view = currentViews().some((x) => x.id === v && x.id !== 'client') ? v : currentViews()[0].id;
   if (!localStorage.getItem(STORAGE_KEY)) save({ skipSync: true });
   if (typeof Chart === 'undefined') console.warn('Chart.js failed to load. Charts are disabled; all other features work offline.');
   renderAll();
   checkCloud().then((available) => {
     renderAccountBtn(); renderSyncIndicator();
     if (ui.view === 'vault' && $('cloudCard')) $('cloudCard').innerHTML = cloudCardHtml();
-    if (session) pullVault();
-    else if (available && !state.settings.authSkipped) openAuth('login', { gate: true });
+    if (isTrainer()) loadClients();
+    else if (session) pullVault();
+    else if (available && !state.settings.authSkipped) { openAuth('login', { gate: true }); return; }
+    maybeAutoTour();
   });
 })();
 </script>
