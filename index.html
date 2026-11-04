@@ -123,9 +123,9 @@
     <nav id="sideNav" class="flex-1 space-y-1 overflow-y-auto px-3 scroll-thin"></nav>
     <div class="m-3 rounded-2xl border border-amber-200/70 bg-amber-50 p-4 dark:border-white/5 dark:bg-white/[.03]">
       <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        <span id="sideSyncDot" class="h-2 w-2 rounded-full bg-zinc-400"></span> Cloud Vault
+        <span id="sideSyncDot" class="h-2 w-2 rounded-full bg-zinc-400"></span> Cloud Account
       </div>
-      <div id="sideSyncText" class="mt-1 text-xs muted">Local-only mode</div>
+      <div id="sideSyncText" class="mt-1 space-y-0.5 text-xs muted">Checking cloud…</div>
       <div class="mt-3 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400"><i class="fa-solid fa-shield-halved text-emerald-500"></i> 100% Client-side privacy</div>
       <div class="mt-1 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400"><i class="fa-solid fa-seedling text-emerald-500"></i> Pure Vegetarian database</div>
     </div>
@@ -151,6 +151,7 @@
           <button id="scoreBadge" onclick="go('insights')" class="flex items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-sm font-bold shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:ring-white/10" title="Daily Fitness Score">
             <i class="fa-solid fa-medal"></i><span id="scoreVal">0</span><span class="hidden text-xs font-semibold text-zinc-500 md:inline">/100</span>
           </button>
+          <button id="accountBtn" class="hidden" aria-label="Account"></button>
           <button onclick="toggleTheme()" class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:text-amber-300 dark:ring-white/10" title="Toggle light / dark theme" aria-label="Toggle theme">
             <i id="themeIcon" class="fa-solid fa-moon"></i>
           </button>
@@ -195,108 +196,11 @@
   </div>
 </div>
 
+<div id="authScreen" class="fixed inset-0 z-[55] hidden overflow-y-auto bg-amber-50 dark:bg-obsidian"></div>
+
 <div id="toasts" class="pointer-events-none fixed bottom-24 left-1/2 z-[60] flex w-[92vw] max-w-sm -translate-x-1/2 flex-col gap-2 lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0"></div>
 
 
-<!-- Cloudflare Worker backend (displayed in the Data Vault "View Cloudflare Worker Script" modal) -->
-<script type="text/plain" id="workerSource">/**
- * MiyeeFit Pro — Cloudflare Vault Worker (worker.js)
- * Engineered by Miyee Tech Labs • miyeetechlabs.com
- *
- * Setup (≈60 seconds):
- *  1. Cloudflare Dashboard → Workers & Pages → Create → Worker → paste this file → Deploy.
- *  2. Storage & Databases → KV → Create namespace (e.g. "miyeefit-vault").
- *  3. Worker → Settings → Bindings → Add → KV namespace → Variable name: MIYEEFIT_VAULT.
- *  4. Worker → Settings → Variables and Secrets → Add Secret → Name: SYNC_TOKEN → a long random string.
- *  5. In MiyeeFit Pro → Data Vault: paste the Worker URL + the same SYNC_TOKEN → Test Connection.
- *
- * Endpoints:
- *   GET    /health  → service status (no auth)
- *   GET    /vault   → returns the stored vault JSON        (Authorization: Bearer <SYNC_TOKEN>)
- *   PUT    /vault   → stores { updatedAt, data }            (Authorization: Bearer <SYNC_TOKEN>)
- *   DELETE /vault   → wipes the stored vault                (Authorization: Bearer <SYNC_TOKEN>)
- */
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Max-Age': '86400'
-};
-
-const MAX_BYTES = 20 * 1024 * 1024; // KV values may be up to 25 MiB
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS_HEADERS }
-  });
-}
-
-async function sha256Hex(text) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function timingSafeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-export default {
-  async fetch(request, env) {
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
-
-    const url = new URL(request.url);
-    const path = url.pathname.replace(/\/+$/, '') || '/';
-
-    if (path === '/' || path === '/health') {
-      return json({ ok: true, service: 'miyeefit-pro-vault', kvBound: !!env.MIYEEFIT_VAULT, time: new Date().toISOString() });
-    }
-    if (path !== '/vault') return json({ ok: false, error: 'Not found' }, 404);
-    if (!env.MIYEEFIT_VAULT) return json({ ok: false, error: 'KV namespace MIYEEFIT_VAULT is not bound' }, 500);
-    if (!env.SYNC_TOKEN) return json({ ok: false, error: 'Secret SYNC_TOKEN is not configured' }, 500);
-
-    const auth = request.headers.get('Authorization') || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-    if (!token || !timingSafeEqual(token, env.SYNC_TOKEN)) return json({ ok: false, error: 'Unauthorized' }, 401);
-
-    const key = 'vault:' + (await sha256Hex(token)).slice(0, 40);
-
-    if (request.method === 'GET') {
-      const stored = await env.MIYEEFIT_VAULT.get(key);
-      if (!stored) return json({ ok: false, error: 'Vault is empty' }, 404);
-      return new Response(stored, {
-        status: 200,
-        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS_HEADERS }
-      });
-    }
-
-    if (request.method === 'PUT' || request.method === 'POST') {
-      const body = await request.text();
-      if (body.length > MAX_BYTES) return json({ ok: false, error: 'Payload too large' }, 413);
-      let parsed;
-      try { parsed = JSON.parse(body); } catch (e) { return json({ ok: false, error: 'Invalid JSON' }, 400); }
-      if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
-        return json({ ok: false, error: 'Expected { updatedAt, data }' }, 400);
-      }
-      const storedAt = new Date().toISOString();
-      const record = JSON.stringify({ app: 'MiyeeFit Pro', updatedAt: parsed.updatedAt || storedAt, storedAt, data: parsed.data });
-      await env.MIYEEFIT_VAULT.put(key, record);
-      return json({ ok: true, storedAt, bytes: record.length });
-    }
-
-    if (request.method === 'DELETE') {
-      await env.MIYEEFIT_VAULT.delete(key);
-      return json({ ok: true, deleted: true });
-    }
-
-    return json({ ok: false, error: 'Method not allowed' }, 405);
-  }
-};
-</script>
 
 <script>
 'use strict';
@@ -520,7 +424,7 @@ function defaultState() {
       theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
       demoDismissed: false,
       planner: { template: 'hp_indian', calories: 'auto', swaps: {} },
-      cf: { url: '', token: '', auto: false, lastPush: null, lastPull: null, status: 'idle', message: 'Not configured' }
+      authSkipped: false
     },
     meta: { created: now, updated: now }
   };
@@ -569,7 +473,8 @@ function sanitizeState(s) {
     kcal: Math.max(0, num(f.kcal)), p: Math.max(0, num(f.p)), c: Math.max(0, num(f.c)), f: Math.max(0, num(f.f)), fib: Math.max(0, num(f.fib)), tags: [], builtin: false
   }));
   const settings = { ...d.settings, ...(s.settings || {}) };
-  settings.cf = { ...d.settings.cf, ...((s.settings || {}).cf || {}) };
+  delete settings.cf;
+  settings.authSkipped = !!settings.authSkipped;
   settings.planner = { ...d.settings.planner, ...((s.settings || {}).planner || {}) };
   if (!['light', 'dark'].includes(settings.theme)) settings.theme = d.settings.theme;
   return { schema: SCHEMA, version: 1, profile: p, logs, customFoods, settings, meta: { ...d.meta, ...(s.meta || {}) } };
@@ -594,7 +499,7 @@ function save(opts = {}) {
   state.meta.updated = new Date().toISOString();
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch (e) { toast('Local storage is full — export a backup and prune old data.', 'error'); }
-  if (!opts.skipSync) scheduleAutoSync();
+  if (!opts.skipSync) scheduleCloudSync();
 }
 
 const getLog = (d) => state.logs[d] || emptyLog();
@@ -1806,8 +1711,434 @@ function toggleProfileFlag(k) { state.profile[k] = !state.profile[k]; save(); re
 
 
 /* =====================================================================
- *  Module F: Data Vault & Cloudflare Cloud Sync (MiyeeCFO Architecture)
+ *  Module F: Data Vault & Cloud Account Sync
  * ===================================================================== */
+const SESSION_KEY = 'miyeefit_pro_session';
+const API_BASE = '';
+const cloud = { available: null, status: 'idle', message: '', dirty: false, busy: false, queued: false, lastPullCheck: 0 };
+let session = loadSession();
+
+function loadSession() {
+  try { const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); if (s && /^[0-9a-f]{64}$/.test(s.token) && s.user && s.user.id) return s; } catch (e) { /* ignore */ }
+  return null;
+}
+function storeSession() { try { if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session)); else localStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ } }
+function persistLocal() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { toast('Local storage is full — export a backup.', 'error'); } }
+function exportableState() { const copy = JSON.parse(JSON.stringify(state)); delete copy.settings.cf; return copy; }
+const firstName = (n) => String(n || 'there').trim().split(/\s+/)[0];
+
+async function api(path, { method = 'GET', body, timeout = 20000 } = {}) {
+  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(API_BASE + path, {
+      method, signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: 'Bearer ' + session.token } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    let data = null; try { data = await res.json(); } catch (e) { data = null; }
+    if (res.status === 401 && session && !/\/api\/auth\/(login|signup)$/.test(path)) handleExpired((data && data.error) || 'Your session has expired');
+    if (!res.ok || !data) { const err = new Error((data && data.error) || `Request failed (HTTP ${res.status})`); err.status = res.status; err.data = data; throw err; }
+    return data;
+  } catch (e) {
+    if (e.name === 'AbortError') { const err = new Error('The cloud took too long to respond — try again'); err.status = 0; throw err; }
+    if (e.status === undefined) { const err = new Error('Cannot reach the cloud — check your internet connection'); err.status = 0; throw err; }
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+
+async function checkCloud() {
+  if (location.protocol === 'file:') { cloud.available = false; return false; }
+  try { const r = await api('/api/health', { timeout: 7000 }); cloud.available = !!r.ok; }
+  catch (e) { cloud.available = !!(session && e.status === 0); if (cloud.available) setCloud('offline', 'Offline — changes are kept on this device'); }
+  return cloud.available;
+}
+
+function setCloud(status, message) {
+  cloud.status = status; cloud.message = message || '';
+  renderSyncIndicator(); renderAccountBtn();
+  if (ui.view === 'vault' && $('cloudCard')) $('cloudCard').innerHTML = cloudCardHtml();
+}
+
+function handleExpired(msg) {
+  if (!session) return;
+  session = null; storeSession(); cloud.dirty = false;
+  setCloud('idle', '');
+  toast(msg + ' — please sign in again', 'warn');
+  openAuth('login', { gate: false });
+}
+
+/* ---------- Sync engine ---------- */
+let cloudTimer = null;
+function scheduleCloudSync() {
+  if (!session) return;
+  cloud.dirty = true;
+  clearTimeout(cloudTimer); cloudTimer = setTimeout(() => pushVault(), 1500);
+  renderSyncIndicator();
+}
+
+async function pushVault({ force = false, silent = true } = {}) {
+  if (!session) return false;
+  if (cloud.busy) { cloud.queued = true; return false; }
+  cloud.busy = true; setCloud('syncing', 'Saving to cloud…');
+  try {
+    const r = await api('/api/vault', { method: 'PUT', body: { baseRev: session.rev || 0, updatedAt: state.meta.updated, data: exportableState(), force } });
+    session.rev = r.rev; session.syncedAt = r.savedAt; storeSession(); cloud.dirty = false;
+    setCloud('ok', 'All changes saved to the cloud');
+    if (!silent) toast('Saved to your cloud account ☁️');
+    return true;
+  } catch (e) {
+    if (e.status === 409) { cloud.busy = false; return await resolveConflict(); }
+    if (e.status !== 401) { setCloud(e.status === 0 ? 'offline' : 'error', e.status === 0 ? 'Offline — changes are kept on this device and will sync automatically' : e.message); if (!silent) toast(e.message, 'error'); }
+    return false;
+  } finally {
+    cloud.busy = false;
+    if (cloud.queued) { cloud.queued = false; if (cloud.dirty && session) scheduleCloudSync(); }
+  }
+}
+
+async function resolveConflict() {
+  // Another device saved since our last sync: merge both copies (newer side wins on overlapping fields), then save the result.
+  try {
+    const remote = await api('/api/vault');
+    if (!remote.data) { session.rev = remote.rev; storeSession(); return await pushVault({ force: true }); }
+    const remoteState = sanitizeState(remote.data);
+    const remoteNewer = (remote.updatedAt || '') > state.meta.updated;
+    const theme = state.settings.theme;
+    const merged = remoteNewer ? mergeStates(remoteState, state) : mergeStates(state, remoteState);
+    state = merged; state.settings.theme = theme; state.meta.owner = session.user.id; state.meta.updated = new Date().toISOString();
+    persistLocal();
+    session.rev = remote.rev; storeSession();
+    renderAll();
+    toast('Changes from your other device were merged', 'info');
+    return await pushVault();
+  } catch (e) { setCloud('error', e.message); return false; }
+}
+
+async function pullVault({ silent = true } = {}) {
+  if (!session) return;
+  cloud.lastPullCheck = Date.now();
+  try {
+    if (!silent) setCloud('syncing', 'Checking for updates…');
+    const r = await api('/api/vault');
+    if (!r.data) { await pushVault({ force: true }); return; }
+    if (r.rev !== session.rev) {
+      if (cloud.dirty && state.meta.updated > (r.updatedAt || '')) { session.rev = r.rev; storeSession(); await pushVault(); }
+      else adoptRemote(r, silent ? null : 'Latest data loaded from the cloud');
+    } else if (cloud.dirty) { await pushVault({ silent }); }
+    else { setCloud('ok', 'Up to date'); if (!silent) toast('Everything is already up to date', 'info'); }
+  } catch (e) {
+    if (e.status !== 401) setCloud(e.status === 0 ? 'offline' : 'error', e.message);
+    if (!silent && e.status !== 401) toast(e.message, 'error');
+  }
+}
+
+function adoptRemote(r, msg) {
+  const theme = state.settings.theme;
+  let incoming;
+  try { incoming = sanitizeState(r.data); } catch (e) { setCloud('error', 'Cloud data could not be read: ' + e.message); return; }
+  state = incoming; state.settings.theme = theme; state.meta.owner = session.user.id;
+  session.rev = r.rev; session.syncedAt = r.savedAt || new Date().toISOString(); storeSession(); cloud.dirty = false;
+  persistLocal(); applyTheme();
+  setCloud('ok', 'Synced with the cloud');
+  renderAll();
+  if (msg) toast(msg, 'info');
+}
+
+function mergeStates(cloudState, deviceState) {
+  const out = JSON.parse(JSON.stringify(cloudState));
+  Object.entries(deviceState.logs).forEach(([d, l]) => {
+    const c = out.logs[d];
+    if (!c) { out.logs[d] = JSON.parse(JSON.stringify(l)); return; }
+    const ids = new Set(c.foods.map((f) => f.id)); l.foods.forEach((f) => { if (!ids.has(f.id)) c.foods.push(f); });
+    const cids = new Set(c.cardio.map((x) => x.id)); l.cardio.forEach((x) => { if (!cids.has(x.id)) c.cardio.push(x); });
+    c.steps = Math.max(c.steps, l.steps); c.water = Math.max(c.water, l.water);
+    c.bio = { ...l.bio, ...c.bio };
+  });
+  const fids = new Set(out.customFoods.map((f) => f.id));
+  deviceState.customFoods.forEach((f) => { if (!fids.has(f.id)) out.customFoods.push(f); });
+  return out;
+}
+
+async function afterSignIn(user, token, isNew) {
+  session = { token, user, rev: 0, syncedAt: null }; storeSession();
+  state.settings.authSkipped = false;
+  closeAuth(false);
+  setCloud('syncing', 'Loading your cloud data…');
+  renderHeader();
+  let remote;
+  try { remote = await api('/api/vault'); }
+  catch (e) { setCloud(e.status === 0 ? 'offline' : 'error', e.message); toast(e.message, 'error'); return; }
+  const localHas = Object.keys(state.logs).length > 0 || state.customFoods.length > 0;
+  const sameOwner = state.meta.owner === user.id;
+  if (!remote.data) {
+    if (state.profile.name === defaultProfile().name) state.profile.name = user.name;
+    state.meta.owner = user.id; save({ skipSync: true });
+    await pushVault({ force: true });
+    renderAll();
+    toast(localHas ? `Welcome, ${firstName(user.name)}! This device's data is now saved to your account` : `Welcome, ${firstName(user.name)}! Your account is ready`);
+    return;
+  }
+  if (!localHas || (sameOwner && !(state.meta.updated > (remote.updatedAt || '')))) { adoptRemote(remote, `Welcome back, ${firstName(user.name)}! Your data is synced`); return; }
+  if (sameOwner) { state.meta.owner = user.id; session.rev = remote.rev; storeSession(); cloud.dirty = true; await pushVault(); renderAll(); toast(`Welcome back, ${firstName(user.name)}! Offline changes were synced`); return; }
+  const choice = await chooseMergeDialog(remote);
+  if (choice === 'cloud') { adoptRemote(remote, 'Your cloud data was loaded on this device'); return; }
+  if (choice === 'merge') {
+    let cloudState; try { cloudState = sanitizeState(remote.data); } catch (e) { toast('Cloud data could not be read: ' + e.message, 'error'); return; }
+    const theme = state.settings.theme;
+    state = mergeStates(cloudState, state); state.settings.theme = theme; state.meta.owner = user.id;
+    session.rev = remote.rev; storeSession(); save({ skipSync: true });
+    await pushVault(); renderAll(); toast('This device and your cloud data were merged');
+    return;
+  }
+  state.meta.owner = user.id; save({ skipSync: true });
+  session.rev = remote.rev; storeSession();
+  await pushVault({ force: true }); renderAll(); toast("This device's data replaced your cloud copy");
+}
+
+function chooseMergeDialog(remote) {
+  const remoteDays = remote.data && remote.data.logs ? Object.keys(remote.data.logs).length : 0;
+  const localDays = Object.keys(state.logs).length;
+  return new Promise((resolve) => {
+    openModal('<i class="fa-solid fa-code-merge text-amber-500"></i> Choose which data to keep', `
+      <p class="text-sm muted">Your account already has data in the cloud, and this device has data that isn't linked to your account yet.</p>
+      <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div class="stat-box"><div class="text-[11px] font-bold uppercase muted"><i class="fa-solid fa-cloud"></i> Cloud</div><div class="text-lg font-extrabold">${remoteDays} day(s)</div><div class="text-[11px] muted">Updated ${fmtDateTime(remote.updatedAt)}</div></div>
+        <div class="stat-box"><div class="text-[11px] font-bold uppercase muted"><i class="fa-solid fa-mobile-screen"></i> This device</div><div class="text-lg font-extrabold">${localDays} day(s)</div><div class="text-[11px] muted">Updated ${fmtDateTime(state.meta.updated)}</div></div>
+      </div>
+      <ul class="mt-4 space-y-1.5 text-xs muted">
+        <li><b class="text-zinc-700 dark:text-zinc-200">Merge both</b> keeps everything; where both have the same day, the entries are combined. Profile settings come from the cloud.</li>
+        <li><b class="text-zinc-700 dark:text-zinc-200">Use cloud data</b> replaces this device's data with your account's data.</li>
+        <li><b class="text-zinc-700 dark:text-zinc-200">Use this device</b> overwrites your cloud copy with this device's data.</li>
+      </ul>`,
+      `<button class="btn btn-soft" id="mgDevice">Use this device</button><button class="btn btn-outline" id="mgCloud">Use cloud data</button><button class="btn btn-primary" id="mgMerge"><i class="fa-solid fa-code-merge"></i>Merge both</button>`);
+    window._modalResolve = () => resolve('merge');
+    const pick = (v) => () => { window._modalResolve = null; closeModal(); resolve(v); };
+    $('mgDevice').onclick = pick('device'); $('mgCloud').onclick = pick('cloud'); $('mgMerge').onclick = pick('merge');
+  });
+}
+
+/* ---------- Sign-in screen ---------- */
+const authUi = { mode: 'login', gate: false };
+function openAuth(mode = 'login', { gate = false } = {}) {
+  authUi.mode = mode; authUi.gate = gate;
+  renderAuth();
+  $('authScreen').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => { const f = $(mode === 'signup' ? 'auName' : 'auEmail'); if (f) f.focus(); }, 60);
+}
+function closeAuth(skip) {
+  $('authScreen').classList.add('hidden');
+  document.body.style.overflow = '';
+  if (skip && authUi.gate) { state.settings.authSkipped = true; persistLocal(); toast('Using MiyeeFit Pro on this device only. You can sign in any time from the header.', 'info'); }
+}
+function renderAuth() {
+  const signup = authUi.mode === 'signup';
+  $('authScreen').innerHTML = `
+  <div class="grid min-h-full lg:grid-cols-2">
+    <div class="grad-amber relative hidden flex-col justify-between overflow-hidden p-10 text-white lg:flex">
+      <div class="flex items-center gap-3"><div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20"><i class="fa-solid fa-bolt-lightning text-lg"></i></div><div><div class="text-lg font-extrabold">MiyeeFit Pro</div><div class="text-[11px] font-semibold uppercase tracking-widest opacity-80">Miyee Tech Labs</div></div></div>
+      <div>
+        <h2 class="text-4xl font-extrabold leading-tight">Your fitness journey,<br>safely in the cloud.</h2>
+        <p class="mt-3 max-w-md text-white/85">Sign in once and your meals, workouts, weigh-ins and goals follow you on every device.</p>
+        <ul class="mt-6 space-y-3 text-sm">
+          <li class="flex items-center gap-3"><i class="fa-solid fa-rotate w-5"></i>Automatic sync across phone, tablet and laptop</li>
+          <li class="flex items-center gap-3"><i class="fa-solid fa-lock w-5"></i>Private vault per account, encrypted in transit</li>
+          <li class="flex items-center gap-3"><i class="fa-solid fa-wifi w-5"></i>Works offline — syncs when you're back online</li>
+          <li class="flex items-center gap-3"><i class="fa-solid fa-seedling w-5"></i>100% pure vegetarian nutrition engine</li>
+        </ul>
+      </div>
+      <div class="text-xs opacity-75">Powered by Cloudflare • miyeetechlabs.com</div>
+      <i class="fa-solid fa-heart-pulse pointer-events-none absolute -bottom-16 -right-10 text-[260px] opacity-10"></i>
+    </div>
+    <div class="relative flex items-center justify-center p-5 sm:p-10">
+      ${authUi.gate ? '' : '<button class="btn btn-ghost absolute right-4 top-4 !px-2" onclick="closeAuth(false)" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>'}
+      <div class="w-full max-w-md">
+        <div class="mb-6 flex items-center gap-3 lg:hidden"><div class="grad-amber flex h-11 w-11 items-center justify-center rounded-2xl text-white"><i class="fa-solid fa-bolt-lightning"></i></div><div><div class="text-lg font-extrabold text-zinc-900 dark:text-white">MiyeeFit <span class="text-grad">Pro</span></div><div class="text-[11px] font-semibold uppercase tracking-widest text-amber-700/80 dark:text-amber-400/80">Miyee Tech Labs</div></div></div>
+        <h1 class="text-2xl font-extrabold text-zinc-900 dark:text-white">${signup ? 'Create your account' : 'Welcome back'}</h1>
+        <p class="mt-1 text-sm muted">${signup ? 'Your data will be saved securely to the cloud.' : 'Sign in to sync your data across devices.'}</p>
+        <div class="mt-5 grid grid-cols-2 gap-1 rounded-xl bg-amber-100/70 p-1 dark:bg-white/5">
+          <button class="rounded-lg py-2 text-sm font-bold transition ${!signup ? 'bg-white shadow text-amber-700 dark:bg-ink dark:text-amber-300' : 'muted'}" onclick="authUi.mode='login';renderAuth()">Sign in</button>
+          <button class="rounded-lg py-2 text-sm font-bold transition ${signup ? 'bg-white shadow text-amber-700 dark:bg-ink dark:text-amber-300' : 'muted'}" onclick="authUi.mode='signup';renderAuth()">Create account</button>
+        </div>
+        <form class="mt-5 space-y-3" onsubmit="submitAuth(event)" novalidate>
+          ${signup ? '<div><label class="label" for="auName">Full name</label><input id="auName" class="input" autocomplete="name" maxlength="60" placeholder="e.g. Priya Sharma" required></div>' : ''}
+          <div><label class="label" for="auEmail">Email</label><input id="auEmail" type="email" class="input" autocomplete="email" placeholder="you@example.com" required></div>
+          <div><label class="label" for="auPass">Password</label>
+            <div class="relative"><input id="auPass" type="password" class="input !pr-10" autocomplete="${signup ? 'new-password' : 'current-password'}" placeholder="${signup ? 'At least 8 characters' : 'Your password'}" required>
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 text-zinc-400 hover:text-amber-600" onclick="const i=$('auPass');i.type=i.type==='password'?'text':'password';this.firstChild.className='fa-solid '+(i.type==='password'?'fa-eye':'fa-eye-slash')" aria-label="Show or hide password"><i class="fa-solid fa-eye"></i></button></div></div>
+          ${signup ? '<div><label class="label" for="auPass2">Confirm password</label><input id="auPass2" type="password" class="input" autocomplete="new-password" placeholder="Repeat your password" required></div>' : ''}
+          <div id="auError" class="hidden rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700 dark:bg-rose-400/10 dark:text-rose-300"></div>
+          <button id="auSubmit" type="submit" class="btn btn-primary w-full !py-2.5">${signup ? '<i class="fa-solid fa-user-plus"></i>Create account' : '<i class="fa-solid fa-right-to-bracket"></i>Sign in'}</button>
+        </form>
+        ${signup ? '<p class="mt-3 text-[11px] muted"><i class="fa-solid fa-circle-info"></i> Choose a password you will remember — for your privacy, passwords cannot be recovered. Exporting a JSON backup from the Data Vault is always a good idea.</p>' : ''}
+        ${authUi.gate ? `<div class="my-5 flex items-center gap-3 text-xs muted"><div class="h-px flex-1 bg-amber-200 dark:bg-white/10"></div>or<div class="h-px flex-1 bg-amber-200 dark:bg-white/10"></div></div>
+        <button class="btn btn-ghost w-full" onclick="closeAuth(true)"><i class="fa-solid fa-mobile-screen"></i>Continue without an account</button>
+        <p class="mt-2 text-center text-[11px] muted">Your data will stay only on this device.</p>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function submitAuth(e) {
+  e.preventDefault();
+  const signup = authUi.mode === 'signup';
+  const err = (m) => { const el = $('auError'); el.textContent = m; el.classList.remove('hidden'); };
+  $('auError').classList.add('hidden');
+  const email = $('auEmail').value.trim(), password = $('auPass').value;
+  const name = signup ? $('auName').value.trim() : '';
+  if (signup && !name) return err('Please enter your name.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return err('Please enter a valid email address.');
+  if (signup && password.length < 8) return err('Password must be at least 8 characters.');
+  if (!password) return err('Please enter your password.');
+  if (signup && password !== $('auPass2').value) return err('Passwords do not match.');
+  const btn = $('auSubmit'); const label = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i>${signup ? 'Creating account…' : 'Signing in…'}`;
+  try {
+    const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST', body: signup ? { name, email, password } : { email, password } });
+    await afterSignIn(r.user, r.token, signup);
+  } catch (ex) {
+    if ($('auSubmit')) { btn.disabled = false; btn.innerHTML = label; err(ex.message); }
+  }
+}
+
+/* ---------- Account controls ---------- */
+function renderAccountBtn() {
+  const el = $('accountBtn'); if (!el) return;
+  if (session) {
+    const dot = { ok: 'bg-emerald-500', syncing: 'bg-amber-500 animate-pulse', offline: 'bg-zinc-400', error: 'bg-rose-500', idle: 'bg-emerald-500' }[cloud.status] || 'bg-emerald-500';
+    el.className = 'relative flex h-9 items-center gap-2 rounded-xl bg-white pl-1 pr-1 text-sm font-bold shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:ring-white/10 md:pr-3';
+    el.innerHTML = `<span class="grad-amber flex h-7 w-7 items-center justify-center rounded-lg text-xs font-extrabold text-white">${esc(firstName(session.user.name).charAt(0).toUpperCase())}</span><span class="hidden max-w-[110px] truncate md:inline">${esc(firstName(session.user.name))}</span><span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-obsidian ${dot}"></span>`;
+    el.title = `Signed in as ${session.user.email} — ${cloud.message || 'cloud sync on'}`;
+    el.onclick = () => go('vault');
+  } else if (cloud.available) {
+    el.className = 'btn btn-primary btn-sm !h-9';
+    el.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i><span class="hidden sm:inline">Sign in</span>';
+    el.title = 'Sign in to save your data to the cloud';
+    el.onclick = () => openAuth('login');
+  } else { el.className = 'hidden'; el.innerHTML = ''; }
+}
+
+function renderSyncIndicator() {
+  const dot = $('sideSyncDot'), txt = $('sideSyncText'); if (!dot) return;
+  if (session) {
+    const st = cloud.dirty && cloud.status === 'ok' ? 'syncing' : cloud.status;
+    dot.className = 'h-2 w-2 rounded-full ' + ({ ok: 'bg-emerald-500', syncing: 'bg-amber-500 animate-pulse', offline: 'bg-zinc-400', error: 'bg-rose-500' }[st] || 'bg-emerald-500');
+    const line = st === 'syncing' ? 'Saving…' : st === 'offline' ? 'Offline — saved on device' : st === 'error' ? 'Sync issue — open Data Vault' : session.syncedAt ? `Saved ${timeAgo(session.syncedAt)}` : 'Connected';
+    txt.innerHTML = `<div class="truncate font-semibold text-zinc-700 dark:text-zinc-200">${esc(session.user.email)}</div><div>${line}</div>`;
+  } else if (cloud.available) {
+    dot.className = 'h-2 w-2 rounded-full bg-amber-400';
+    txt.innerHTML = 'Not signed in — data stays on this device. <button class="font-bold text-amber-700 underline dark:text-amber-400" onclick="openAuth(\'login\')">Sign in</button>';
+  } else {
+    dot.className = 'h-2 w-2 rounded-full bg-zinc-400';
+    txt.textContent = cloud.available === null ? 'Checking cloud…' : 'Local-only mode';
+  }
+}
+function timeAgo(iso) {
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago';
+}
+
+function cloudCardHtml() {
+  const head = `<div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-cloud mr-1 text-orange-500"></i>Cloud Account</div>`;
+  if (!session && !cloud.available) {
+    return `${head}<span class="pill pill-gray">Unavailable</span></div>
+      <p class="mt-3 text-sm muted">${cloud.available === null ? 'Checking the cloud connection…' : 'Cloud sign-in works on the Cloudflare-hosted version of MiyeeFit Pro. On this copy your data is saved only in this browser — use JSON backups to move it between devices.'}</p>`;
+  }
+  if (!session) {
+    return `${head}<span class="pill pill-amber">Not signed in</span></div>
+      <p class="mt-3 text-sm muted">Create a free account to save your profile, logs and custom foods to the cloud. Everything syncs automatically across all your devices.</p>
+      <ul class="mt-3 space-y-1.5 text-xs muted"><li><i class="fa-solid fa-check text-emerald-500"></i> Automatic saving after every change</li><li><i class="fa-solid fa-check text-emerald-500"></i> Private vault per account, passwords securely hashed</li><li><i class="fa-solid fa-check text-emerald-500"></i> Keeps working offline</li></ul>
+      <div class="mt-4 grid grid-cols-2 gap-2"><button class="btn btn-primary" onclick="openAuth('signup')"><i class="fa-solid fa-user-plus"></i>Create account</button><button class="btn btn-outline" onclick="openAuth('login')"><i class="fa-solid fa-right-to-bracket"></i>Sign in</button></div>`;
+  }
+  const st = cloud.dirty && cloud.status === 'ok' ? 'syncing' : cloud.status;
+  const sm = { ok: ['bg-emerald-500', 'Synced'], idle: ['bg-emerald-500', 'Connected'], syncing: ['bg-amber-500 animate-pulse', 'Saving…'], offline: ['bg-zinc-400', 'Offline'], error: ['bg-rose-500', 'Sync issue'] }[st] || ['bg-emerald-500', 'Connected'];
+  return `${head}<span class="flex items-center gap-2 text-xs font-bold"><span class="h-2.5 w-2.5 rounded-full ${sm[0]}"></span>${sm[1]}</span></div>
+    <div class="mt-4 flex items-center gap-3">
+      <span class="grad-amber flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-extrabold text-white">${esc(firstName(session.user.name).charAt(0).toUpperCase())}</span>
+      <div class="min-w-0"><div class="truncate font-extrabold">${esc(session.user.name)}</div><div class="truncate text-sm muted">${esc(session.user.email)}</div></div>
+    </div>
+    <div class="mt-4 rounded-xl bg-amber-50 p-3 text-xs dark:bg-white/[.03]">
+      <div class="flex justify-between"><span class="muted">Last saved to cloud</span><b>${fmtDateTime(session.syncedAt)}</b></div>
+      <div class="flex justify-between"><span class="muted">Cloud version</span><b>#${session.rev || 0}</b></div>
+      <div class="mt-1 muted">${esc(cloud.message || 'Changes are saved automatically.')}</div>
+    </div>
+    <div class="mt-3 grid grid-cols-2 gap-2">
+      <button class="btn btn-primary" onclick="syncNow()"><i class="fa-solid fa-rotate"></i>Sync now</button>
+      <button class="btn btn-soft" onclick="changePasswordDialog()"><i class="fa-solid fa-key"></i>Change password</button>
+      <button class="btn btn-outline" onclick="signOutDialog()"><i class="fa-solid fa-right-from-bracket"></i>Sign out</button>
+      <button class="btn border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400 dark:hover:bg-rose-400/10" onclick="deleteAccountDialog()"><i class="fa-solid fa-user-xmark"></i>Delete account</button>
+    </div>`;
+}
+
+async function syncNow() { if (cloud.dirty) await pushVault({ silent: false }); else await pullVault({ silent: false }); }
+
+function changePasswordDialog() {
+  openModal('<i class="fa-solid fa-key text-amber-500"></i> Change password', `
+    <div class="space-y-3">
+      <div><label class="label" for="cpCur">Current password</label><input id="cpCur" type="password" class="input" autocomplete="current-password"></div>
+      <div><label class="label" for="cpNew">New password</label><input id="cpNew" type="password" class="input" autocomplete="new-password" placeholder="At least 8 characters"></div>
+      <div><label class="label" for="cpNew2">Confirm new password</label><input id="cpNew2" type="password" class="input" autocomplete="new-password"></div>
+      <p class="text-[11px] muted">Other devices will be signed out.</p>
+    </div>`, `<button class="btn btn-soft" onclick="closeModal()">Cancel</button><button id="cpGo" class="btn btn-primary">Update password</button>`);
+  $('cpGo').onclick = async () => {
+    const cur = $('cpCur').value, nw = $('cpNew').value;
+    if (nw.length < 8) return toast('New password must be at least 8 characters', 'warn');
+    if (nw !== $('cpNew2').value) return toast('New passwords do not match', 'warn');
+    $('cpGo').disabled = true;
+    try { const r = await api('/api/auth/password', { method: 'POST', body: { currentPassword: cur, newPassword: nw } }); closeModal(); toast(`Password updated${r.signedOutOtherDevices ? ` • ${r.signedOutOtherDevices} other device(s) signed out` : ''}`); }
+    catch (e) { if ($('cpGo')) $('cpGo').disabled = false; toast(e.message, 'error'); }
+  };
+}
+
+function signOutDialog() {
+  openModal('<i class="fa-solid fa-right-from-bracket text-amber-500"></i> Sign out', `
+    <p class="text-sm muted">Your data stays safe in your cloud account. Sign in again on any device to get it back.</p>
+    <label class="mt-4 flex items-start gap-3 rounded-xl border border-amber-100 p-3 text-sm dark:border-white/5"><input id="soClear" type="checkbox" class="mt-0.5 h-4 w-4 accent-amber-500" checked><span><b>Remove my data from this device</b><span class="block text-xs muted">Recommended on shared or public devices.</span></span></label>`,
+    `<button class="btn btn-soft" onclick="closeModal()">Cancel</button><button id="soGo" class="btn btn-primary">Sign out</button>`);
+  $('soGo').onclick = async () => {
+    const clear = $('soClear').checked;
+    $('soGo').disabled = true;
+    if (cloud.dirty) {
+      clearTimeout(cloudTimer);
+      const ok = await pushVault();
+      if (!ok && clear) { if ($('soGo')) $('soGo').disabled = false; return toast('Some changes are not saved to the cloud yet. Reconnect, or untick "Remove my data" to keep them on this device.', 'error'); }
+    }
+    closeModal();
+    await signOut(clear);
+  };
+}
+
+async function signOut(clear) {
+  if (session) { try { await api('/api/auth/logout', { method: 'POST', timeout: 6000 }); } catch (e) { /* session will expire on its own */ } }
+  session = null; storeSession(); cloud.dirty = false; clearTimeout(cloudTimer);
+  if (clear) { const theme = state.settings.theme; state = defaultState(); state.settings.theme = theme; ui.date = todayStr(); persistLocal(); }
+  setCloud('idle', '');
+  renderAll();
+  toast('Signed out', 'info');
+  if (cloud.available) openAuth('login', { gate: true });
+}
+
+function deleteAccountDialog() {
+  openModal('<i class="fa-solid fa-user-xmark text-rose-500"></i> Delete cloud account', `
+    <p class="text-sm muted">This permanently deletes your account <b>${esc(session.user.email)}</b> and all data stored in the cloud. Data on this device is kept, so you can still export a backup.</p>
+    <div class="mt-4 space-y-3">
+      <div><label class="label" for="daPass">Password</label><input id="daPass" type="password" class="input" autocomplete="current-password"></div>
+      <div><label class="label" for="daConfirm">Type <span class="mono text-rose-500">DELETE</span> to confirm</label><input id="daConfirm" class="input" autocomplete="off"></div>
+    </div>`, `<button class="btn btn-soft" onclick="closeModal()">Cancel</button><button id="daGo" class="btn btn-danger">Delete account</button>`);
+  $('daGo').onclick = async () => {
+    if ($('daConfirm').value.trim() !== 'DELETE') return toast('Please type DELETE to confirm', 'warn');
+    $('daGo').disabled = true;
+    try {
+      await api('/api/account', { method: 'DELETE', body: { password: $('daPass').value } });
+      closeModal();
+      session = null; storeSession(); cloud.dirty = false; delete state.meta.owner; persistLocal();
+      state.settings.authSkipped = true; persistLocal();
+      setCloud('idle', ''); renderAll(); toast('Your cloud account and its data were deleted', 'info');
+    } catch (e) { if ($('daGo')) $('daGo').disabled = false; toast(e.message, 'error'); }
+  };
+}
+
+/* ---------- Data Vault view ---------- */
 function vaultStats() {
   const raw = JSON.stringify(state);
   const days = Object.keys(state.logs).sort();
@@ -1818,14 +2149,14 @@ function vaultStats() {
 }
 
 function renderVault() {
-  const st = vaultStats(), cf = state.settings.cf;
-  const statusMap = { idle: ['bg-zinc-400', 'Idle'], ok: ['bg-emerald-500', 'Connected'], syncing: ['bg-amber-500 animate-pulse', 'Syncing…'], error: ['bg-rose-500', 'Error'] };
-  const sm = statusMap[cf.status] || statusMap.idle;
+  const st = vaultStats();
   $('view-vault').innerHTML = `
   <div class="fade-in space-y-5">
-    <div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Data Vault &amp; <span class="text-grad">Cloud Sync</span></h1><p class="text-sm muted">MiyeeCFO-grade data management • your data never leaves this browser unless you push it to <i>your own</i> Cloudflare Worker</p></div>
+    <div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Data Vault &amp; <span class="text-grad">Cloud Sync</span></h1><p class="text-sm muted">${session ? `Signed in as <b>${esc(session.user.email)}</b> • every change is saved on this device and to your cloud account` : 'Your data is saved in this browser • sign in to keep it safe in the cloud and use it on all your devices'}</p></div>
 
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div id="cloudCard" class="card card-pad">${cloudCardHtml()}</div>
+
       <div class="card card-pad">
         <div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-database mr-1 text-amber-500"></i>Local Storage Engine</div><span class="pill pill-green"><i class="fa-solid fa-circle"></i>Auto-saving</span></div>
         <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1841,178 +2172,25 @@ function renderVault() {
       </div>
 
       <div class="card card-pad">
-        <div class="flex items-center justify-between"><div class="h-title"><i class="fa-brands fa-cloudflare mr-1 text-orange-500"></i>Cloudflare Worker / KV Sync</div>
-          <span class="flex items-center gap-2 text-xs font-bold"><span class="h-2.5 w-2.5 rounded-full ${sm[0]}"></span>${sm[1]}</span></div>
-        <div class="mt-4 space-y-3">
-          <div><label class="label">Worker endpoint URL</label><input id="cfUrl" class="input mono !text-xs" placeholder="https://miyeefit-vault.your-subdomain.workers.dev" value="${esc(cf.url)}" onchange="saveCfField('url', this.value)"></div>
-          <div><label class="label">Secret sync key / vault token</label>
-            <div class="flex gap-1.5"><input id="cfToken" type="password" class="input mono !text-xs" placeholder="Same value as the SYNC_TOKEN secret" value="${esc(cf.token)}" onchange="saveCfField('token', this.value)" autocomplete="off">
-            <button class="btn btn-ghost !px-3" onclick="const i=$('cfToken');i.type=i.type==='password'?'text':'password'" title="Show / hide" aria-label="Show or hide token"><i class="fa-solid fa-eye"></i></button>
-            <button class="btn btn-ghost !px-3" onclick="generateToken()" title="Generate a strong random token" aria-label="Generate token"><i class="fa-solid fa-key"></i></button></div></div>
-          <label class="flex items-center justify-between gap-3 rounded-xl border border-amber-100 p-3 text-sm font-semibold dark:border-white/5"><span><i class="fa-solid fa-rotate mr-1 text-amber-500"></i>Auto-Sync on Change<div class="text-[11px] font-normal muted">Pushes to your vault 4 s after each edit</div></span><span class="switch ${cf.auto ? 'on' : ''}" role="switch" aria-checked="${cf.auto}" onclick="toggleAutoSync()"></span></label>
-          <div class="grid grid-cols-2 gap-2">
-            <button class="btn btn-primary" onclick="cfPush()"><i class="fa-solid fa-cloud-arrow-up"></i>Push to Vault</button>
-            <button class="btn btn-outline" onclick="cfPull()"><i class="fa-solid fa-cloud-arrow-down"></i>Pull from Vault</button>
-            <button class="btn btn-soft" onclick="cfTest()"><i class="fa-solid fa-plug-circle-check"></i>Test Connection</button>
-            <button class="btn btn-soft" onclick="showWorkerScript()"><i class="fa-solid fa-code"></i>View Worker Script</button>
-          </div>
-          <div class="rounded-xl bg-amber-50 p-3 text-xs dark:bg-white/[.03]">
-            <div class="flex justify-between"><span class="muted">Last push</span><b>${fmtDateTime(cf.lastPush)}</b></div>
-            <div class="flex justify-between"><span class="muted">Last pull</span><b>${fmtDateTime(cf.lastPull)}</b></div>
-            <div class="mt-1 muted">${esc(cf.message || '')}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card card-pad">
         <div class="h-title"><i class="fa-solid fa-file-export mr-1 text-emerald-500"></i>File Backup &amp; Portability</div>
         <div class="mt-4 space-y-2">
           <button class="btn btn-soft w-full !justify-start" onclick="exportJSON()"><i class="fa-solid fa-file-code w-5"></i>Export Full Backup (.json)<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">profile, logs, custom foods, settings</span></button>
           <label class="btn btn-soft w-full cursor-pointer !justify-start"><i class="fa-solid fa-file-import w-5"></i>Import / Restore Backup (.json)<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">schema-validated</span><input type="file" accept="application/json,.json" class="hidden" onchange="importJSON(this)"></label>
           <button class="btn btn-soft w-full !justify-start" onclick="exportCSV()"><i class="fa-solid fa-file-csv w-5"></i>Export Progress Report (.csv)<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">date-wise summary</span></button>
         </div>
-        <div class="mt-3 text-[11px] muted"><i class="fa-solid fa-lock"></i> Exports never include your Cloudflare sync token.</div>
+        <div class="mt-3 text-[11px] muted"><i class="fa-solid fa-lock"></i> Backups never include your password or sign-in session.</div>
       </div>
 
       <div class="card card-pad">
         <div class="h-title"><i class="fa-solid fa-flask mr-1 text-violet-500"></i>Demo Data &amp; Reset</div>
         <div class="mt-4 space-y-2">
           <button class="btn btn-soft w-full !justify-start" onclick="loadDemoData()"><i class="fa-solid fa-wand-magic-sparkles w-5"></i>Load Realistic 14-Day Demo Data<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">replaces logs</span></button>
-          <button class="btn w-full !justify-start border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400 dark:hover:bg-rose-400/10" onclick="factoryReset()"><i class="fa-solid fa-triangle-exclamation w-5"></i>Factory Reset Vault<span class="ml-auto hidden text-[11px] font-normal sm:inline opacity-70">irreversible</span></button>
+          <button class="btn w-full !justify-start border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400 dark:hover:bg-rose-400/10" onclick="factoryReset()"><i class="fa-solid fa-triangle-exclamation w-5"></i>Factory Reset This Device<span class="ml-auto hidden text-[11px] font-normal opacity-70 sm:inline">irreversible</span></button>
         </div>
-        <div class="mt-3 text-[11px] muted">Tip: export a JSON backup before loading demo data or resetting.</div>
+        <div class="mt-3 text-[11px] muted">Tip: export a JSON backup before loading demo data or resetting.${session ? ' While signed in, demo data also replaces your cloud copy.' : ''}</div>
       </div>
     </div>
   </div>`;
-}
-
-function renderSyncIndicator() {
-  const cf = state.settings.cf;
-  const dot = $('sideSyncDot'), txt = $('sideSyncText'); if (!dot) return;
-  const configured = cf.url && cf.token;
-  dot.className = 'h-2 w-2 rounded-full ' + (!configured ? 'bg-zinc-400' : cf.status === 'error' ? 'bg-rose-500' : cf.status === 'syncing' ? 'bg-amber-500 animate-pulse' : cf.status === 'ok' ? 'bg-emerald-500' : 'bg-amber-400');
-  txt.textContent = !configured ? 'Local-only mode' : cf.status === 'error' ? 'Sync error — see Vault' : cf.lastPush ? `${cf.auto ? 'Auto-sync on • ' : ''}Pushed ${timeAgo(cf.lastPush)}` : 'Configured, not yet synced';
-}
-function timeAgo(iso) {
-  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago';
-}
-function setCfStatus(status, message) { state.settings.cf.status = status; state.settings.cf.message = message; save({ skipSync: true }); renderSyncIndicator(); if (ui.view === 'vault') renderVault(); }
-function saveCfField(k, v) { state.settings.cf[k] = String(v).trim(); if (k === 'url') state.settings.cf.url = state.settings.cf.url.replace(/\/+$/, ''); state.settings.cf.status = 'idle'; state.settings.cf.message = 'Settings updated — test the connection'; save({ skipSync: true }); renderSyncIndicator(); }
-function generateToken() {
-  const bytes = new Uint8Array(24); crypto.getRandomValues(bytes);
-  const tok = 'mft_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-  $('cfToken').value = tok; $('cfToken').type = 'text'; saveCfField('token', tok);
-  toast('Token generated — set the same value as SYNC_TOKEN in your Worker', 'info');
-}
-function toggleAutoSync() {
-  const cf = state.settings.cf;
-  if (!cf.auto && !(cf.url && cf.token)) return toast('Configure the Worker URL and token first', 'warn');
-  cf.auto = !cf.auto; save({ skipSync: true }); renderVault(); renderSyncIndicator();
-  toast(cf.auto ? 'Auto-sync enabled' : 'Auto-sync disabled', 'info');
-  if (cf.auto) cfPush(true);
-}
-function cfReady() {
-  const cf = state.settings.cf;
-  if (!cf.url || !/^https?:\/\//i.test(cf.url)) { toast('Enter a valid Worker URL (https://…)', 'warn'); return false; }
-  if (!cf.token || cf.token.length < 8) { toast('Enter your sync token (8+ characters)', 'warn'); return false; }
-  return true;
-}
-function exportableState() { const copy = JSON.parse(JSON.stringify(state)); copy.settings.cf = { ...copy.settings.cf, token: '', status: 'idle' }; return copy; }
-
-async function cfFetch(path, opts = {}) {
-  const cf = state.settings.cf;
-  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 15000);
-  try {
-    const res = await fetch(cf.url + path, { ...opts, signal: ctrl.signal, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cf.token, ...(opts.headers || {}) } });
-    let body = null; try { body = await res.json(); } catch (e) { body = null; }
-    return { res, body };
-  } finally { clearTimeout(timer); }
-}
-async function cfTest() {
-  if (!cfReady()) return;
-  setCfStatus('syncing', 'Testing connection…');
-  try {
-    const { res, body } = await cfFetch('/health', { method: 'GET' });
-    if (!res.ok || !body || !body.ok) throw new Error(`Health check failed (HTTP ${res.status})`);
-    if (!body.kvBound) throw new Error('Worker reachable, but the MIYEEFIT_VAULT KV binding is missing');
-    const probe = await cfFetch('/vault', { method: 'GET' });
-    if (probe.res.status === 401) throw new Error('Worker reachable, but the token was rejected (401)');
-    setCfStatus('ok', probe.res.status === 404 ? 'Connected • vault is empty, push to initialise it' : `Connected • remote vault last updated ${fmtDateTime(probe.body && probe.body.updatedAt)}`);
-    toast('Cloudflare Vault connection verified');
-  } catch (e) { setCfStatus('error', e.name === 'AbortError' ? 'Request timed out' : e.message); toast(e.name === 'AbortError' ? 'Connection timed out' : e.message, 'error'); }
-}
-let pushing = false;
-async function cfPush(silent = false) {
-  if (!cfReady()) return;
-  if (pushing) return; pushing = true;
-  setCfStatus('syncing', 'Pushing vault to Cloudflare…');
-  try {
-    const payload = JSON.stringify({ updatedAt: state.meta.updated, data: exportableState() });
-    const { res, body } = await cfFetch('/vault', { method: 'PUT', body: payload });
-    if (!res.ok || !body || !body.ok) throw new Error((body && body.error) || `Push failed (HTTP ${res.status})`);
-    state.settings.cf.lastPush = new Date().toISOString();
-    setCfStatus('ok', `Pushed ${r1(payload.length / 1024)} KB • stored at ${fmtDateTime(body.storedAt)}`);
-    if (!silent) toast('Vault pushed to Cloudflare ☁️');
-  } catch (e) { setCfStatus('error', e.name === 'AbortError' ? 'Push timed out' : e.message); if (!silent) toast(e.message, 'error'); }
-  finally { pushing = false; }
-}
-async function cfPull() {
-  if (!cfReady()) return;
-  setCfStatus('syncing', 'Pulling vault from Cloudflare…');
-  try {
-    const { res, body } = await cfFetch('/vault', { method: 'GET' });
-    if (res.status === 404) throw new Error('Remote vault is empty — push first');
-    if (!res.ok || !body || !body.data) throw new Error((body && body.error) || `Pull failed (HTTP ${res.status})`);
-    const incoming = sanitizeState(body.data);
-    const remoteDays = Object.keys(incoming.logs).length;
-    setCfStatus('ok', 'Remote vault fetched — awaiting confirmation');
-    const ok = await confirmDialog({ title: 'Restore from Cloudflare Vault', message: `Remote vault updated <b>${fmtDateTime(body.updatedAt)}</b> contains <b>${remoteDays}</b> logged day(s). Your local vault was updated <b>${fmtDateTime(state.meta.updated)}</b> with <b>${Object.keys(state.logs).length}</b> day(s).<br><br>Replace local data with the remote copy?`, confirmText: 'Replace local data' });
-    if (!ok) { setCfStatus('ok', 'Pull cancelled — local data unchanged'); return; }
-    const cf = { ...state.settings.cf };
-    state = incoming; state.settings.cf = { ...cf, lastPull: new Date().toISOString(), status: 'ok', message: `Restored ${remoteDays} day(s) from Cloudflare` };
-    applyTheme(); save({ skipSync: true }); renderAll(); toast('Vault restored from Cloudflare');
-  } catch (e) { setCfStatus('error', e.name === 'AbortError' ? 'Pull timed out' : e.message); toast(e.message, 'error'); }
-}
-let syncTimer = null;
-function scheduleAutoSync() {
-  const cf = state.settings.cf;
-  if (!cf.auto || !cf.url || !cf.token) return;
-  clearTimeout(syncTimer); syncTimer = setTimeout(() => cfPush(true), 4000);
-}
-
-function showWorkerScript() {
-  const code = $('workerSource').textContent.trim();
-  openModal('<i class="fa-brands fa-cloudflare text-orange-500"></i> Cloudflare Worker Script — worker.js', `
-    <ol class="mb-4 list-decimal space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-300">
-      <li><b>Workers &amp; Pages → Create → Worker</b>, paste the script below and click <b>Deploy</b>.</li>
-      <li><b>Storage &amp; Databases → KV → Create namespace</b> (e.g. <span class="mono">miyeefit-vault</span>).</li>
-      <li>Worker <b>Settings → Bindings → KV namespace</b>, variable name <span class="mono font-bold">MIYEEFIT_VAULT</span>.</li>
-      <li>Worker <b>Settings → Variables and Secrets → Secret</b> named <span class="mono font-bold">SYNC_TOKEN</span> (use the 🔑 generator in the Vault).</li>
-      <li>Paste the <span class="mono">*.workers.dev</span> URL and the token here, then <b>Test Connection</b>.</li>
-    </ol>
-    <div class="relative"><button class="btn btn-primary btn-sm absolute right-2 top-2" onclick="copyWorker()"><i class="fa-regular fa-copy"></i>Copy</button>
-    <pre class="scroll-thin max-h-[48vh] overflow-auto rounded-xl bg-zinc-950 p-4 text-[11px] leading-relaxed text-amber-100"><code class="mono">${esc(code)}</code></pre></div>
-    <details class="mt-3 text-sm"><summary class="cursor-pointer font-semibold">Prefer Wrangler CLI? wrangler.toml</summary>
-    <pre class="mt-2 overflow-auto rounded-xl bg-zinc-950 p-3 text-[11px] text-amber-100"><code class="mono">name = "miyeefit-vault"
-main = "worker.js"
-compatibility_date = "2024-09-23"
-
-[[kv_namespaces]]
-binding = "MIYEEFIT_VAULT"
-id = "&lt;your-kv-namespace-id&gt;"
-
-# then run:  npx wrangler secret put SYNC_TOKEN  &amp;&amp;  npx wrangler deploy</code></pre></details>`,
-    `<button class="btn btn-soft" onclick="downloadFile('worker.js', $('workerSource').textContent.trim(), 'text/javascript')"><i class="fa-solid fa-download"></i>Download worker.js</button><button class="btn btn-primary" onclick="copyWorker()"><i class="fa-regular fa-copy"></i>Copy Script</button>`);
-}
-async function copyWorker() {
-  const code = $('workerSource').textContent.trim();
-  try { await navigator.clipboard.writeText(code); toast('worker.js copied to clipboard'); }
-  catch (e) {
-    const ta = document.createElement('textarea'); ta.value = code; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); toast('worker.js copied to clipboard'); } catch (err) { toast('Copy failed — select the code manually', 'error'); }
-    ta.remove();
-  }
 }
 
 /* ---------- File backup & portability ---------- */
@@ -2038,10 +2216,10 @@ function importJSON(input) {
       if (parsed.schema && parsed.schema !== SCHEMA) throw new Error(`Unsupported schema "${parsed.schema}"`);
       const incoming = sanitizeState(raw);
       const days = Object.keys(incoming.logs).length;
-      const ok = await confirmDialog({ title: 'Restore backup', message: `<b>${esc(file.name)}</b> is a valid MiyeeFit Pro backup for <b>${esc(incoming.profile.name)}</b> with <b>${days}</b> logged day(s) and <b>${incoming.customFoods.length}</b> custom food(s).<br><br>This will replace all current local data.`, confirmText: 'Restore backup' });
+      const ok = await confirmDialog({ title: 'Restore backup', message: `<b>${esc(file.name)}</b> is a valid MiyeeFit Pro backup for <b>${esc(incoming.profile.name)}</b> with <b>${days}</b> logged day(s) and <b>${incoming.customFoods.length}</b> custom food(s).<br><br>This will replace all current data on this device${session ? ' <b>and in your cloud account</b>' : ''}.`, confirmText: 'Restore backup' });
       if (!ok) return;
-      const cf = { ...state.settings.cf };
-      state = incoming; state.settings.cf = { ...state.settings.cf, url: cf.url || state.settings.cf.url, token: cf.token, auto: cf.auto, lastPush: cf.lastPush, lastPull: cf.lastPull };
+      state = incoming;
+      if (session) state.meta.owner = session.user.id;
       applyTheme(); save(); renderAll(); toast(`Backup restored • ${days} day(s)`);
     } catch (e) { toast('Import failed: ' + e.message, 'error'); }
   };
@@ -2064,7 +2242,7 @@ function exportCSV() {
 /* ---------- Demo data & reset ---------- */
 async function loadDemoData() {
   if (Object.keys(state.logs).length) {
-    const ok = await confirmDialog({ title: 'Load 14-day demo data', message: 'This replaces all existing daily logs and resets your profile weights with realistic sample data. Your custom foods and sync settings are kept.', confirmText: 'Load demo data', danger: true });
+    const ok = await confirmDialog({ title: 'Load 14-day demo data', message: 'This replaces all existing daily logs and resets your profile weights with realistic sample data. Your custom foods are kept.' + (session ? ' Because you are signed in, your cloud copy is replaced too.' : ''), confirmText: 'Load demo data', danger: true });
     if (!ok) return;
   }
   const rnd = mulberry32(20241104);
@@ -2115,25 +2293,32 @@ async function loadDemoData() {
   save(); renderAll(); toast('14 days of realistic pure-veg demo data loaded 🎉');
 }
 async function factoryReset() {
-  const ok = await confirmDialog({ title: 'Factory reset vault', message: 'This permanently deletes your profile, every daily log, custom foods and sync settings from this browser. Remote Cloudflare data is <b>not</b> touched.', confirmText: 'Erase everything', danger: true, requireText: 'RESET' });
+  const ok = await confirmDialog({ title: 'Factory reset this device', message: 'This permanently deletes your profile, every daily log and custom foods from this browser.' + (session ? ' You will also be signed out on this device. Your <b>cloud account data is not deleted</b> — sign in again to restore it.' : ''), confirmText: 'Erase everything', danger: true, requireText: 'RESET' });
   if (!ok) return;
+  if (session) { clearTimeout(cloudTimer); try { await api('/api/auth/logout', { method: 'POST', timeout: 6000 }); } catch (e) { /* ignore */ } session = null; storeSession(); cloud.dirty = false; setCloud('idle', ''); }
   localStorage.removeItem(STORAGE_KEY);
   state = defaultState(); ui.date = todayStr();
-  save({ skipSync: true }); renderAll(); toast('Vault reset to factory defaults', 'info');
+  save({ skipSync: true }); renderAll(); toast('This device was reset to factory defaults', 'info');
+  if (cloud.available) openAuth('login', { gate: true });
 }
 
 /* ---------- Boot ---------- */
 function applyTheme() { document.documentElement.classList.toggle('dark', state.settings.theme === 'dark'); }
-function renderAll() { renderHeader(); renderBanner(); renderNav(); go(ui.view); }
+function renderAll() { renderHeader(); renderAccountBtn(); renderBanner(); renderNav(); go(ui.view); }
 
 window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && v !== ui.view) go(v); });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
+  else if (e.key === 'Escape' && !$('authScreen').classList.contains('hidden') && !authUi.gate) closeAuth(false);
   if (e.target.matches('input, select, textarea')) return;
   if (e.key === 'ArrowLeft' && e.altKey) shiftDate(-1);
   if (e.key === 'ArrowRight' && e.altKey) shiftDate(1);
 });
-window.addEventListener('storage', (e) => { if (e.key === STORAGE_KEY && e.newValue) { try { state = sanitizeState(JSON.parse(e.newValue)); applyTheme(); renderAll(); } catch (err) { /* ignore foreign writes */ } } });
+window.addEventListener('storage', (e) => {
+  if (e.key === SESSION_KEY) { session = loadSession(); renderAll(); if (!session && cloud.available) openAuth('login', { gate: true }); else closeAuth(false); return; }
+  if (e.key === STORAGE_KEY && e.newValue) { try { state = sanitizeState(JSON.parse(e.newValue)); applyTheme(); renderAll(); } catch (err) { /* ignore foreign writes */ } } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && session && Date.now() - cloud.lastPullCheck > 30000) pullVault(); });
+window.addEventListener('online', () => { if (session) { if (cloud.dirty) pushVault(); else pullVault(); } });
 let lastDay = todayStr();
 setInterval(() => {
   const t = todayStr();
@@ -2148,6 +2333,12 @@ setInterval(() => {
   if (!localStorage.getItem(STORAGE_KEY)) save({ skipSync: true });
   if (typeof Chart === 'undefined') console.warn('Chart.js failed to load — charts are disabled, all other features work offline.');
   renderAll();
+  checkCloud().then((available) => {
+    renderAccountBtn(); renderSyncIndicator();
+    if (ui.view === 'vault' && $('cloudCard')) $('cloudCard').innerHTML = cloudCardHtml();
+    if (session) pullVault();
+    else if (available && !state.settings.authSkipped) openAuth('login', { gate: true });
+  });
 })();
 </script>
 </body>

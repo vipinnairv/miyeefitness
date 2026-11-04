@@ -2,16 +2,30 @@
 
 **Personal Fitness, Weight Reduction & Pure Vegetarian Nutrition Tracker** — engineered by [Miyee Tech Labs](https://miyeetechlabs.com).
 
-A single self-contained `index.html` (Tailwind CSS, Chart.js and Font Awesome from CDN). It has no build step and runs entirely in the browser. All data is stored in `localStorage` under the key `miyeefit_pro_v1`. You can optionally sync it to your own Cloudflare Worker + KV.
+The whole app is a single `index.html` (Tailwind CSS, Chart.js and Font Awesome from CDN). A small Cloudflare Worker serves it and adds **user accounts with cloud-saved data**.
 
 ## Modules
-- **Executive Dashboard**: date switcher; step, water, calorie-balance and weight KPI cards; weight trend vs target trajectory; intake vs burn chart; macro doughnut.
-- **Daily Tracker**: 68-item pure-veg food database (Jain and Low-GI tags), custom veg foods (non-veg names are rejected), MET-based cardio logger with manual override, biometric check-in (weight, waist, sleep, energy).
-- **Scope of Improvement**: Daily Fitness Score (0–100) built from 7 audits: calorie deficit, protein, hydration, steps, cardio, weight plateau and recovery. Each audit gives actionable fixes.
-- **Veg Diet Planner**: 4 templates (High-Protein Indian, Low-GI, Working Professional, Jain). Each scales to your calorie target and has meal swaps, 1-click apply, and a protein/fiber cheat sheet.
+- **Executive Dashboard**: step, water, calorie-balance and weight KPI cards; weight trend, intake vs burn, and macro charts.
+- **Daily Tracker**: 68-item pure-veg food database (Jain and Low-GI tags), custom veg foods, MET-based cardio logger, biometric check-in.
+- **Scope of Improvement**: Daily Fitness Score (0–100) from 7 audits, each with actionable fixes.
+- **Veg Diet Planner**: 4 templates scaled to your calorie target, meal swaps, 1-click apply, protein/fiber cheat sheet.
 - **Profile & Biometrics**: BMI (WHO and Asian cut-offs), Mifflin-St Jeor BMR, TDEE, calorie and macro targets, goal date.
-- **Data Vault & Sync**: storage stats, Cloudflare push/pull/auto-sync, `worker.js` viewer, JSON backup/restore, CSV report, 14-day demo data, factory reset.
+- **Data Vault & Cloud Account**: sign in / create account, automatic cloud saving, JSON backup/restore, CSV report, demo data, reset.
 
-## Deploy
-- **Cloudflare Pages:** create a project, upload this folder (or connect the repo), and use no build command with `/` as the output directory.
-- **Cloud sync:** open *Data Vault → View Worker Script* and follow the 5 steps. You need a KV binding named `MIYEEFIT_VAULT` and a secret named `SYNC_TOKEN`.
+## Accounts & cloud sync
+- Sign up with name, email and password. Passwords are hashed with PBKDF2-SHA256 (100k iterations), and sessions last 30 days.
+- Every change is saved locally first, then pushed to the cloud about 1.5 s later. It works offline and syncs again when the connection is back.
+- Other devices pick up changes when the app is reopened or refocused. Simultaneous edits are merged rather than overwritten.
+- You can continue without an account; data then stays in that browser only.
+- The account panel offers change password, sign out (optionally wiping the device) and delete account.
+
+## Deployment (Cloudflare Workers, via Git)
+`wrangler.jsonc` defines the Worker `miyeefitness`:
+- `worker/index.js` handles `/api/*`. Every other request is served from the static assets; `.assetsignore` makes sure only `index.html` is published.
+- KV binding `MIYEEFIT_KV`. The namespace is created automatically on the first `wrangler deploy`.
+
+Cloudflare Workers Builds deploys on every push to `main` (build command: none; deploy command: `npx wrangler deploy`).
+
+Local development: `npx wrangler dev`, then open http://localhost:8787.
+
+Static copies (e.g. GitHub Pages) still work fully, in local-only mode without sign-in.
