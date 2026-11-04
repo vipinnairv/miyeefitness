@@ -1,0 +1,2154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MiyeeFit Pro • Miyee Tech Labs</title>
+<meta name="description" content="MiyeeFit Pro — Personal Fitness, Weight Reduction & Pure Vegetarian Nutrition Tracker by Miyee Tech Labs. 100% client-side privacy with optional Cloudflare Vault sync.">
+<meta name="theme-color" content="#F59E0B">
+<meta name="author" content="Miyee Tech Labs — miyeetechlabs.com">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23F59E0B'/%3E%3Cstop offset='1' stop-color='%23EA580C'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M14 44V20l10 14 8-11 8 11 10-14v24' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script>
+  (function () {
+    try {
+      var raw = localStorage.getItem('miyeefit_pro_v1');
+      var theme = raw ? (JSON.parse(raw).settings || {}).theme : null;
+      if (!theme) theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      if (theme === 'dark') document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com/3.4.5"></script>
+<script>
+  if (window.tailwind) tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'] },
+        colors: { obsidian: '#0F141C', ink: '#18181B' }
+      }
+    }
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --amber-grad: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%);
+    --ring-track: #FEF3C7;
+    --c-steps: #F59E0B;
+    --c-water: #06B6D4;
+    --c-intake: #10B981;
+    --c-burn: #F43F5E;
+    --c-weight: #8B5CF6;
+  }
+  html.dark { --ring-track: rgba(255,255,255,0.07); }
+  html, body { -webkit-tap-highlight-color: transparent; }
+  body { font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .grad-amber { background: var(--amber-grad); }
+  .text-grad { background: var(--amber-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ring-track { stroke: var(--ring-track); }
+  .glass-vessel { position: relative; width: 74px; height: 112px; border: 3px solid rgba(6,182,212,.55); border-top-width: 0; border-radius: 6px 6px 22px 22px; overflow: hidden; background: rgba(6,182,212,.06); }
+  .glass-vessel::before { content: ""; position: absolute; top: 0; left: -6px; right: -6px; height: 3px; background: rgba(6,182,212,.55); border-radius: 3px; }
+  .glass-water { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, #22D3EE 0%, #0891B2 100%); transition: height .7s cubic-bezier(.2,.8,.2,1); }
+  .glass-water::before { content: ""; position: absolute; top: -7px; left: -50%; width: 200%; height: 14px; background: radial-gradient(circle at 10px -4px, transparent 10px, #22D3EE 11px) repeat-x; background-size: 20px 14px; animation: wave 2.4s linear infinite; }
+  @keyframes wave { from { transform: translateX(0); } to { transform: translateX(20px); } }
+  .fade-in { animation: fadeIn .35s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .toast-in { animation: toastIn .3s ease both; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+  .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: rgba(245,158,11,.35); border-radius: 6px; }
+  input[type=number]::-webkit-inner-spin-button { opacity: .5; }
+  input[type=date]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .7; }
+  html.dark input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
+  .switch { position: relative; width: 44px; height: 24px; border-radius: 999px; background: #D6D3D1; transition: background .2s; flex-shrink: 0; cursor: pointer; }
+  html.dark .switch { background: #3F3F46; }
+  .switch.on { background: #F59E0B; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+  .switch.on::after { transform: translateX(20px); }
+  @media print { aside, header, nav, footer, #toasts { display: none !important; } }
+</style>
+<style type="text/tailwindcss">
+  @layer components {
+    .card { @apply bg-white dark:bg-ink border border-amber-200/70 dark:border-white/5 rounded-2xl shadow-sm shadow-amber-900/5; }
+    .card-pad { @apply p-4 sm:p-5; }
+    .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition select-none active:scale-[.97] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap; }
+    .btn-primary { @apply text-white shadow-md shadow-amber-500/25 hover:brightness-110; background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%); }
+    .btn-soft { @apply bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20; }
+    .btn-ghost { @apply bg-transparent text-zinc-600 hover:bg-amber-100/70 dark:text-zinc-300 dark:hover:bg-white/5; }
+    .btn-outline { @apply border border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-400/30 dark:text-amber-300 dark:hover:bg-amber-400/10; }
+    .btn-danger { @apply bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/20; }
+    .btn-sm { @apply px-2.5 py-1.5 text-xs rounded-lg; }
+    .input { @apply w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-800 placeholder-zinc-400 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-amber-400/60; }
+    .label { @apply block text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1.5; }
+    .pill { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide; }
+    .pill-green { @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300; }
+    .pill-amber { @apply bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300; }
+    .pill-red { @apply bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300; }
+    .pill-gray { @apply bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300; }
+    .pill-violet { @apply bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300; }
+    .h-title { @apply text-base font-bold text-zinc-900 dark:text-white; }
+    .muted { @apply text-zinc-500 dark:text-zinc-400; }
+    .nav-item { @apply w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-amber-100/70 hover:text-amber-800 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-amber-300 transition; }
+    .nav-item.active { @apply text-white shadow-md shadow-amber-500/25; background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%); }
+    .bnav-item { @apply flex flex-col items-center justify-center gap-0.5 flex-1 py-2 text-[10px] font-semibold text-zinc-500 dark:text-zinc-400; }
+    .bnav-item.active { @apply text-amber-600 dark:text-amber-400; }
+    .chip { @apply rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-zinc-600 hover:bg-amber-100 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5 transition whitespace-nowrap; }
+    .chip.active { @apply border-transparent bg-amber-500 text-white hover:bg-amber-500 dark:bg-amber-500 dark:text-white; }
+    .stat-box { @apply rounded-xl bg-amber-50/80 dark:bg-white/[.03] border border-amber-100 dark:border-white/5 p-3; }
+    .tbl th { @apply text-left text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 px-3 py-2 border-b border-amber-100 dark:border-white/5 whitespace-nowrap; }
+    .tbl td { @apply px-3 py-2 text-sm border-b border-amber-50 dark:border-white/[.04] whitespace-nowrap; }
+  }
+</style>
+</head>
+<body class="min-h-screen bg-amber-50 text-zinc-800 dark:bg-obsidian dark:text-zinc-100 antialiased">
+
+<div class="flex min-h-screen">
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden lg:flex fixed inset-y-0 left-0 z-40 w-64 flex-col border-r border-amber-200/70 bg-white/90 backdrop-blur dark:border-white/5 dark:bg-ink/95">
+    <div class="flex items-center gap-3 px-5 pt-6 pb-5">
+      <div class="grad-amber flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-lg shadow-amber-500/30">
+        <i class="fa-solid fa-bolt-lightning text-lg"></i>
+      </div>
+      <div>
+        <div class="text-lg font-extrabold leading-tight text-zinc-900 dark:text-white">MiyeeFit <span class="text-grad">Pro</span></div>
+        <div class="text-[11px] font-semibold uppercase tracking-widest text-amber-700/80 dark:text-amber-400/80">Miyee Tech Labs</div>
+      </div>
+    </div>
+    <nav id="sideNav" class="flex-1 space-y-1 overflow-y-auto px-3 scroll-thin"></nav>
+    <div class="m-3 rounded-2xl border border-amber-200/70 bg-amber-50 p-4 dark:border-white/5 dark:bg-white/[.03]">
+      <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <span id="sideSyncDot" class="h-2 w-2 rounded-full bg-zinc-400"></span> Cloud Vault
+      </div>
+      <div id="sideSyncText" class="mt-1 text-xs muted">Local-only mode</div>
+      <div class="mt-3 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400"><i class="fa-solid fa-shield-halved text-emerald-500"></i> 100% Client-side privacy</div>
+      <div class="mt-1 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400"><i class="fa-solid fa-seedling text-emerald-500"></i> Pure Vegetarian database</div>
+    </div>
+  </aside>
+
+  <!-- Main column -->
+  <div class="flex min-h-screen w-full flex-1 flex-col pb-20 lg:ml-64 lg:pb-0">
+    <header class="sticky top-0 z-30 border-b border-amber-200/70 bg-amber-50/85 backdrop-blur-md dark:border-white/5 dark:bg-obsidian/85">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 md:px-6">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
+          <div class="grad-amber flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-md shadow-amber-500/30 lg:hidden">
+            <i class="fa-solid fa-bolt-lightning"></i>
+          </div>
+          <div class="min-w-0">
+            <div id="greeting" class="truncate text-base font-extrabold text-zinc-900 dark:text-white sm:text-lg">Welcome</div>
+            <div id="subGreeting" class="truncate text-xs muted">Let's make today count.</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="streakBadge" class="hidden items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-sm font-bold text-orange-600 shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:ring-white/10 sm:flex" title="Logging streak">
+            <i class="fa-solid fa-fire"></i><span id="streakVal">0</span><span class="hidden text-xs font-semibold text-zinc-500 md:inline">day streak</span>
+          </div>
+          <button id="scoreBadge" onclick="go('insights')" class="flex items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-sm font-bold shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:ring-white/10" title="Daily Fitness Score">
+            <i class="fa-solid fa-medal"></i><span id="scoreVal">0</span><span class="hidden text-xs font-semibold text-zinc-500 md:inline">/100</span>
+          </button>
+          <button onclick="toggleTheme()" class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-200 dark:bg-white/5 dark:text-amber-300 dark:ring-white/10" title="Toggle light / dark theme" aria-label="Toggle theme">
+            <i id="themeIcon" class="fa-solid fa-moon"></i>
+          </button>
+        </div>
+        <div class="flex w-full items-center gap-1.5 sm:w-auto">
+          <button onclick="shiftDate(-1)" class="btn btn-ghost btn-sm !px-2" title="Previous day" aria-label="Previous day"><i class="fa-solid fa-chevron-left"></i><span class="hidden sm:inline">Prev</span></button>
+          <button onclick="setDate(todayStr())" id="todayBtn" class="btn btn-soft btn-sm">Today</button>
+          <input id="datePicker" type="date" class="input !w-auto !py-1.5 !text-xs font-semibold" onchange="if(this.value) setDate(this.value)">
+          <button onclick="shiftDate(1)" id="nextBtn" class="btn btn-ghost btn-sm !px-2" title="Next day" aria-label="Next day"><span class="hidden sm:inline">Next</span><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-5 md:px-6 md:py-6">
+      <div id="demoBanner"></div>
+      <section id="view-dashboard" class="view"></section>
+      <section id="view-tracker" class="view hidden"></section>
+      <section id="view-insights" class="view hidden"></section>
+      <section id="view-planner" class="view hidden"></section>
+      <section id="view-profile" class="view hidden"></section>
+      <section id="view-vault" class="view hidden"></section>
+    </main>
+
+    <footer class="border-t border-amber-200/70 px-4 py-5 text-center text-xs text-zinc-500 dark:border-white/5 dark:text-zinc-500">
+      <span class="font-bold text-amber-700 dark:text-amber-400">MiyeeFit Pro</span> • Engineered by <a href="https://miyeetechlabs.com" target="_blank" rel="noopener" class="font-semibold hover:text-amber-600">Miyee Tech Labs</a> • 100% Client-Side Privacy &amp; Cloudflare Cloud Sync
+    </footer>
+  </div>
+</div>
+
+<!-- Bottom navigation (mobile) -->
+<nav id="bottomNav" class="fixed inset-x-0 bottom-0 z-40 flex border-t border-amber-200/70 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-white/5 dark:bg-ink/95 lg:hidden"></nav>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 z-50 hidden items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" onclick="if(event.target===this) closeModal()">
+  <div class="fade-in flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl dark:bg-ink sm:rounded-3xl">
+    <div class="flex items-center justify-between border-b border-amber-100 px-5 py-4 dark:border-white/5">
+      <h3 id="modalTitle" class="h-title"></h3>
+      <button onclick="closeModal()" class="btn btn-ghost btn-sm !px-2" aria-label="Close"><i class="fa-solid fa-xmark text-base"></i></button>
+    </div>
+    <div id="modalBody" class="overflow-y-auto px-5 py-4 scroll-thin"></div>
+    <div id="modalFoot" class="flex flex-wrap justify-end gap-2 border-t border-amber-100 px-5 py-3 dark:border-white/5"></div>
+  </div>
+</div>
+
+<div id="toasts" class="pointer-events-none fixed bottom-24 left-1/2 z-[60] flex w-[92vw] max-w-sm -translate-x-1/2 flex-col gap-2 lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0"></div>
+
+
+<!-- Cloudflare Worker backend (displayed in the Data Vault "View Cloudflare Worker Script" modal) -->
+<script type="text/plain" id="workerSource">/**
+ * MiyeeFit Pro — Cloudflare Vault Worker (worker.js)
+ * Engineered by Miyee Tech Labs • miyeetechlabs.com
+ *
+ * Setup (≈60 seconds):
+ *  1. Cloudflare Dashboard → Workers & Pages → Create → Worker → paste this file → Deploy.
+ *  2. Storage & Databases → KV → Create namespace (e.g. "miyeefit-vault").
+ *  3. Worker → Settings → Bindings → Add → KV namespace → Variable name: MIYEEFIT_VAULT.
+ *  4. Worker → Settings → Variables and Secrets → Add Secret → Name: SYNC_TOKEN → a long random string.
+ *  5. In MiyeeFit Pro → Data Vault: paste the Worker URL + the same SYNC_TOKEN → Test Connection.
+ *
+ * Endpoints:
+ *   GET    /health  → service status (no auth)
+ *   GET    /vault   → returns the stored vault JSON        (Authorization: Bearer <SYNC_TOKEN>)
+ *   PUT    /vault   → stores { updatedAt, data }            (Authorization: Bearer <SYNC_TOKEN>)
+ *   DELETE /vault   → wipes the stored vault                (Authorization: Bearer <SYNC_TOKEN>)
+ */
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400'
+};
+
+const MAX_BYTES = 20 * 1024 * 1024; // KV values may be up to 25 MiB
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS_HEADERS }
+  });
+}
+
+async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+export default {
+  async fetch(request, env) {
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
+
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    if (path === '/' || path === '/health') {
+      return json({ ok: true, service: 'miyeefit-pro-vault', kvBound: !!env.MIYEEFIT_VAULT, time: new Date().toISOString() });
+    }
+    if (path !== '/vault') return json({ ok: false, error: 'Not found' }, 404);
+    if (!env.MIYEEFIT_VAULT) return json({ ok: false, error: 'KV namespace MIYEEFIT_VAULT is not bound' }, 500);
+    if (!env.SYNC_TOKEN) return json({ ok: false, error: 'Secret SYNC_TOKEN is not configured' }, 500);
+
+    const auth = request.headers.get('Authorization') || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+    if (!token || !timingSafeEqual(token, env.SYNC_TOKEN)) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+    const key = 'vault:' + (await sha256Hex(token)).slice(0, 40);
+
+    if (request.method === 'GET') {
+      const stored = await env.MIYEEFIT_VAULT.get(key);
+      if (!stored) return json({ ok: false, error: 'Vault is empty' }, 404);
+      return new Response(stored, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS_HEADERS }
+      });
+    }
+
+    if (request.method === 'PUT' || request.method === 'POST') {
+      const body = await request.text();
+      if (body.length > MAX_BYTES) return json({ ok: false, error: 'Payload too large' }, 413);
+      let parsed;
+      try { parsed = JSON.parse(body); } catch (e) { return json({ ok: false, error: 'Invalid JSON' }, 400); }
+      if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
+        return json({ ok: false, error: 'Expected { updatedAt, data }' }, 400);
+      }
+      const storedAt = new Date().toISOString();
+      const record = JSON.stringify({ app: 'MiyeeFit Pro', updatedAt: parsed.updatedAt || storedAt, storedAt, data: parsed.data });
+      await env.MIYEEFIT_VAULT.put(key, record);
+      return json({ ok: true, storedAt, bytes: record.length });
+    }
+
+    if (request.method === 'DELETE') {
+      await env.MIYEEFIT_VAULT.delete(key);
+      return json({ ok: true, deleted: true });
+    }
+
+    return json({ ok: false, error: 'Method not allowed' }, 405);
+  }
+};
+</script>
+
+<script>
+'use strict';
+/* =====================================================================
+ *  MiyeeFit Pro — Core Engine
+ *  Miyee Tech Labs • miyeetechlabs.com
+ * ===================================================================== */
+
+const STORAGE_KEY = 'miyeefit_pro_v1';
+const SCHEMA = 'miyeefit_pro_v1';
+const KCAL_PER_KG = 7700;
+
+/* ---------- Utilities ---------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const r1 = (n) => Math.round((Number(n) || 0) * 10) / 10;
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('en-IN');
+const num = (v, d = 0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d; };
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const sum = (arr, fn) => arr.reduce((a, x) => a + (fn ? fn(x) : x), 0);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad2 = (n) => String(n).padStart(2, '0');
+const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const parseYmd = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
+const todayStr = () => ymd(new Date());
+const addDays = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
+const daysBetween = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 86400000);
+const isDateKey = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+const fmtDate = (s, opts = { day: 'numeric', month: 'short' }) => parseYmd(s).toLocaleDateString('en-IN', opts);
+const fmtLong = (s) => parseYmd(s).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const fmtDateTime = (iso) => iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const dateRange = (end, days) => { const out = []; for (let i = days - 1; i >= 0; i--) out.push(addDays(end, -i)); return out; };
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ---------- Pure Vegetarian Food Database (per serving) ----------
+ * tags: j = Jain-friendly (no onion, garlic or root vegetables), lg = Low-GI friendly
+ * Strictly vegetarian: no meat, fish, poultry or eggs. */
+const FOOD_DB = [
+  ['roti', 'Roti / Chapati (whole wheat)', '1 medium (40g)', 'Grains', 104, 3.1, 18, 2.4, 2.8, 'j'],
+  ['phulka', 'Phulka (no ghee)', '1 piece (30g)', 'Grains', 75, 2.4, 15.2, 0.4, 2.2, 'j'],
+  ['multigrain_roti', 'Multigrain / Bajra Roti', '1 medium (45g)', 'Grains', 118, 3.8, 20, 2.6, 3.6, 'j lg'],
+  ['white_rice', 'White Rice (cooked)', '1 katori (150g)', 'Grains', 195, 4, 42, 0.4, 0.6, 'j'],
+  ['brown_rice', 'Brown Rice (cooked)', '1 katori (150g)', 'Grains', 165, 3.8, 34.5, 1.3, 2.7, 'j lg'],
+  ['quinoa', 'Quinoa (cooked)', '1 katori (150g)', 'Grains', 180, 6.6, 32, 2.9, 4.2, 'j lg'],
+  ['daliya', 'Vegetable Daliya (broken wheat)', '1 bowl (200g)', 'Grains', 165, 5.5, 30, 2.5, 5, 'lg'],
+  ['khichdi', 'Moong Dal Khichdi', '1 bowl (200g)', 'Grains', 240, 8, 40, 5, 5, 'j'],
+  ['brown_bread', 'Brown Bread', '1 slice (28g)', 'Grains', 70, 3, 12.5, 1, 2, 'j'],
+  ['oats', 'Rolled Oats (dry)', '40g (½ cup)', 'Breakfast', 152, 5.3, 26.5, 2.8, 4.2, 'j lg'],
+  ['poha', 'Poha (veggies & peanuts)', '1 plate (180g)', 'Breakfast', 250, 5, 42, 7, 2.5, ''],
+  ['jain_poha', 'Jain Poha (no onion / potato)', '1 plate (170g)', 'Breakfast', 230, 4.8, 40, 6, 2.4, 'j'],
+  ['upma', 'Rava Upma', '1 plate (180g)', 'Breakfast', 250, 6, 38, 8, 3, ''],
+  ['idli', 'Idli', '2 pieces (100g)', 'Breakfast', 120, 4, 25, 0.5, 1.5, 'j'],
+  ['plain_dosa', 'Plain Dosa', '1 medium', 'Breakfast', 170, 4, 28, 4.5, 1.2, 'j'],
+  ['masala_dosa', 'Masala Dosa', '1 medium', 'Breakfast', 330, 7, 48, 12, 4, ''],
+  ['besan_chilla', 'Besan Chilla (with veggies)', '1 medium', 'Breakfast', 150, 7, 17, 5.5, 3.5, 'lg'],
+  ['moong_chilla', 'Moong Dal Chilla', '1 medium', 'Breakfast', 140, 9, 18, 3.5, 3, 'j lg'],
+  ['ragi_malt', 'Ragi Malt (with toned milk)', '1 glass (250ml)', 'Breakfast', 185, 7, 29, 5, 3.4, 'j'],
+  ['dal_tadka', 'Dal Tadka (toor)', '1 katori (150g)', 'Dals & Legumes', 160, 8, 20, 5.5, 4, 'lg'],
+  ['moong_dal', 'Yellow Moong Dal', '1 katori (150g)', 'Dals & Legumes', 125, 8, 18, 2.5, 4, 'lg'],
+  ['jain_dal', 'Jain Dal (hing-jeera tadka)', '1 katori (150g)', 'Dals & Legumes', 140, 8, 19, 3.5, 4, 'j lg'],
+  ['chana_dal', 'Chana Dal', '1 katori (150g)', 'Dals & Legumes', 165, 9, 24, 3.5, 6, 'j lg'],
+  ['rajma', 'Rajma Curry', '1 katori (150g)', 'Dals & Legumes', 180, 9, 26, 4.5, 8, 'lg'],
+  ['chole', 'Chole (Chickpea Curry)', '1 katori (150g)', 'Dals & Legumes', 210, 9.5, 28, 7, 8, 'lg'],
+  ['sambar', 'Sambar', '1 katori (150g)', 'Dals & Legumes', 115, 5, 16, 3.5, 4, ''],
+  ['rasam', 'Rasam', '1 bowl (150ml)', 'Dals & Legumes', 60, 2, 9, 2, 1.5, ''],
+  ['sprouts', 'Mixed Sprouts Salad', '1 cup (100g)', 'Dals & Legumes', 105, 8, 16, 0.8, 5, 'lg'],
+  ['soya_chunks', 'Soya Chunks (dry weight)', '50g', 'Protein', 173, 26, 16.5, 0.3, 6.5, 'j lg'],
+  ['paneer', 'Raw Paneer (full fat)', '100g', 'Protein', 265, 18.3, 1.2, 20.8, 0, 'j lg'],
+  ['lowfat_paneer', 'Low-fat Paneer', '100g', 'Protein', 175, 18, 4, 9.5, 0, 'j lg'],
+  ['paneer_bhurji', 'Paneer Bhurji', '1 katori (100g)', 'Protein', 265, 15, 6, 20, 1, ''],
+  ['paneer_tikka', 'Paneer Tikka (grilled)', '6 pieces (150g)', 'Protein', 300, 20, 8, 21, 1.5, 'lg'],
+  ['palak_paneer', 'Palak Paneer', '1 katori (150g)', 'Protein', 230, 11, 8, 17, 3, 'lg'],
+  ['tofu', 'Tofu (firm)', '100g', 'Protein', 144, 15.8, 3.5, 8.7, 2.3, 'j lg'],
+  ['whey', 'Whey Protein Scoop', '1 scoop (30g)', 'Protein', 120, 24, 3, 1.5, 0, 'j lg'],
+  ['plant_protein', 'Plant Protein Scoop (pea/rice)', '1 scoop (33g)', 'Protein', 125, 22, 4, 2.5, 2, 'j lg'],
+  ['sattu', 'Sattu Drink (roasted gram)', '30g in water', 'Protein', 120, 6.6, 19.5, 1.9, 5.4, 'j lg'],
+  ['greek_yogurt', 'Greek Yogurt / Hung Curd', '150g', 'Dairy & Alternatives', 100, 15, 5.5, 2.5, 0, 'j lg'],
+  ['curd', 'Curd / Dahi (toned)', '1 katori (150g)', 'Dairy & Alternatives', 90, 4.7, 7, 5, 0, 'j lg'],
+  ['milk', 'Toned Milk', '1 glass (250ml)', 'Dairy & Alternatives', 145, 7.8, 11.8, 7.5, 0, 'j lg'],
+  ['skim_milk', 'Skimmed Milk', '1 glass (250ml)', 'Dairy & Alternatives', 88, 8.5, 12.5, 0.3, 0, 'j lg'],
+  ['buttermilk', 'Buttermilk / Chaas', '1 glass (250ml)', 'Dairy & Alternatives', 40, 2.5, 3.5, 1.5, 0, 'j lg'],
+  ['soy_milk', 'Soy Milk (unsweetened)', '1 glass (250ml)', 'Dairy & Alternatives', 85, 7, 4, 4.5, 1, 'j lg'],
+  ['almonds', 'Almonds', '10 pieces (14g)', 'Nuts & Seeds', 82, 3, 3, 7, 1.7, 'j lg'],
+  ['walnuts', 'Walnuts', '7 halves (14g)', 'Nuts & Seeds', 92, 2.1, 1.9, 9.2, 0.9, 'j lg'],
+  ['peanut_butter', 'Peanut Butter (unsweetened)', '1 tbsp (16g)', 'Nuts & Seeds', 94, 4, 3.2, 8, 1, 'lg'],
+  ['peanuts', 'Roasted Peanuts', '30g', 'Nuts & Seeds', 170, 7.5, 5, 14.5, 2.5, 'lg'],
+  ['chia', 'Chia Seeds', '1 tbsp (12g)', 'Nuts & Seeds', 58, 2, 5, 3.7, 4.1, 'j lg'],
+  ['flax', 'Flax Seeds', '1 tbsp (10g)', 'Nuts & Seeds', 53, 1.8, 2.9, 4.2, 2.7, 'j lg'],
+  ['roasted_chana', 'Roasted Chana', '30g', 'Snacks', 110, 6.5, 17, 1.6, 5, 'j lg'],
+  ['makhana', 'Roasted Makhana (fox nuts)', '1 cup (25g)', 'Snacks', 95, 2.4, 19, 1, 3.6, 'j lg'],
+  ['dhokla', 'Khaman Dhokla', '2 pieces (100g)', 'Snacks', 160, 6, 22, 5, 2, 'j'],
+  ['veg_sandwich', 'Veg Sandwich (brown bread)', '1 sandwich', 'Snacks', 210, 7, 32, 6, 5, ''],
+  ['banana', 'Banana', '1 medium (118g)', 'Fruits', 105, 1.3, 27, 0.4, 3.1, 'j'],
+  ['apple', 'Apple', '1 medium (182g)', 'Fruits', 95, 0.5, 25, 0.3, 4.4, 'j lg'],
+  ['orange', 'Orange', '1 medium (130g)', 'Fruits', 62, 1.2, 15.4, 0.2, 3.1, 'j lg'],
+  ['papaya', 'Papaya', '1 cup (150g)', 'Fruits', 65, 0.7, 16, 0.4, 2.5, 'j lg'],
+  ['guava', 'Guava', '1 medium (100g)', 'Fruits', 68, 2.6, 14.3, 1, 5.4, 'j lg'],
+  ['green_salad', 'Green Salad (cucumber, tomato, lettuce)', '1 bowl (150g)', 'Vegetables', 40, 1.5, 8, 0.3, 3, 'j lg'],
+  ['mixed_veg', 'Mixed Veg Sabzi (dry)', '1 katori (150g)', 'Vegetables', 120, 3, 12, 7, 4, 'lg'],
+  ['jain_sabzi', 'Jain Sabzi (lauki / tinda / capsicum)', '1 katori (150g)', 'Vegetables', 95, 2.2, 10, 5, 3.5, 'j lg'],
+  ['bhindi', 'Bhindi Sabzi', '1 katori (150g)', 'Vegetables', 120, 3, 12, 7, 5, 'j lg'],
+  ['veg_soup', 'Clear Vegetable Soup', '1 bowl (250ml)', 'Vegetables', 70, 2.5, 12, 1.5, 3, 'lg'],
+  ['masala_chai', 'Masala Chai (less sugar)', '1 cup (150ml)', 'Beverages', 80, 2.8, 11, 2.6, 0, 'j'],
+  ['green_tea', 'Green Tea (no sugar)', '1 cup (200ml)', 'Beverages', 2, 0, 0.5, 0, 0, 'j lg'],
+  ['coconut_water', 'Tender Coconut Water', '1 glass (250ml)', 'Beverages', 48, 1.8, 9, 0.5, 2.8, 'j lg'],
+  ['ghee', 'Ghee', '1 tsp (5g)', 'Fats & Oils', 45, 0, 0, 5, 0, 'j']
+].map(([id, name, serving, cat, kcal, p, c, f, fib, tags]) => ({ id, name, serving, cat, kcal, p, c, f, fib, tags: tags.split(' ').filter(Boolean), builtin: true }));
+
+const NON_VEG_WORDS = ['chicken', 'mutton', 'meat', 'fish', 'prawn', 'shrimp', 'crab', 'lobster', 'egg', 'eggs', 'omelette', 'omelet', 'beef', 'pork', 'bacon', 'ham', 'lamb', 'goat', 'turkey', 'duck', 'tuna', 'salmon', 'sardine', 'keema', 'gelatin', 'anchovy', 'squid', 'octopus', 'venison', 'sausage', 'pepperoni', 'salami'];
+function isNonVeg(name) { const words = String(name).toLowerCase().split(/[^a-z]+/); return words.some((w) => NON_VEG_WORDS.includes(w)); }
+
+const MEALS = [
+  { id: 'early', name: 'Early Morning', icon: 'fa-mug-hot', hour: 6 },
+  { id: 'breakfast', name: 'Breakfast', icon: 'fa-bowl-food', hour: 8 },
+  { id: 'lunch', name: 'Lunch', icon: 'fa-utensils', hour: 13 },
+  { id: 'snack', name: 'Evening Snack', icon: 'fa-cookie-bite', hour: 17 },
+  { id: 'dinner', name: 'Dinner', icon: 'fa-moon', hour: 20 },
+  { id: 'post', name: 'Post-Workout', icon: 'fa-dumbbell', hour: 19 }
+];
+const mealName = (id) => (MEALS.find((m) => m.id === id) || { name: id }).name;
+
+/* ---------- MET-based Activity Library (Light / Moderate / Vigorous) ---------- */
+const ACTIVITIES = {
+  brisk_walk: { name: 'Brisk Walking', icon: 'fa-person-walking', met: [3.5, 4.3, 5.0] },
+  treadmill: { name: 'Treadmill Running', icon: 'fa-person-running', met: [7.0, 9.0, 11.0] },
+  outdoor_run: { name: 'Outdoor Running', icon: 'fa-person-running', met: [8.0, 9.8, 11.8] },
+  cycling: { name: 'Cycling (Outdoor)', icon: 'fa-person-biking', met: [5.8, 8.0, 10.0] },
+  stationary_bike: { name: 'Stationary Bike', icon: 'fa-person-biking', met: [4.8, 6.8, 8.8] },
+  hiit: { name: 'HIIT', icon: 'fa-bolt', met: [6.0, 8.0, 10.5] },
+  elliptical: { name: 'Elliptical', icon: 'fa-person-skiing-nordic', met: [4.6, 5.0, 6.5] },
+  skipping: { name: 'Skipping / Jump Rope', icon: 'fa-arrows-up-down', met: [8.8, 11.8, 12.3] },
+  yoga: { name: 'Surya Namaskar / Power Yoga', icon: 'fa-spa', met: [3.0, 4.0, 5.5] },
+  swimming: { name: 'Swimming', icon: 'fa-person-swimming', met: [5.8, 7.0, 9.8] },
+  strength: { name: 'Strength Training', icon: 'fa-dumbbell', met: [3.5, 5.0, 6.0] },
+  stairs: { name: 'Stair Climbing', icon: 'fa-stairs', met: [4.0, 6.5, 8.8] }
+};
+const INTENSITIES = ['Light', 'Moderate', 'Vigorous'];
+const metKcal = (type, intensity, minutes, weight) => {
+  const a = ACTIVITIES[type]; if (!a) return 0;
+  const met = a.met[clamp(intensity, 0, 2)];
+  return met * 3.5 * weight / 200 * minutes;
+};
+
+const LIFESTYLES = {
+  sedentary: { label: 'Sedentary (Desk Job)', factor: 1.2 },
+  light: { label: 'Lightly Active', factor: 1.375 },
+  moderate: { label: 'Moderately Active', factor: 1.55 },
+  very: { label: 'Very Active', factor: 1.725 }
+};
+
+/* ---------- Pure Veg Meal Plan Templates (each meal has swappable options) ---------- */
+const PLAN_TEMPLATES = [
+  {
+    id: 'hp_indian', name: 'High-Protein Vegetarian Fat Loss', sub: 'Indian Home Style', icon: 'fa-fire-flame-curved',
+    desc: 'Protein front-loaded with dals, paneer, soya and curd. Ideal for preserving muscle while in a deficit.',
+    meals: {
+      early: [[['almonds', 1], ['flax', 1]], [['walnuts', 1], ['coconut_water', 1]]],
+      breakfast: [[['moong_chilla', 2], ['greek_yogurt', 1]], [['besan_chilla', 2], ['curd', 1]], [['oats', 1], ['milk', 1], ['chia', 1]]],
+      lunch: [[['roti', 2], ['dal_tadka', 1], ['lowfat_paneer', 0.5], ['green_salad', 1]], [['brown_rice', 1], ['rajma', 1], ['curd', 1], ['green_salad', 1]], [['multigrain_roti', 2], ['chole', 1], ['buttermilk', 1]]],
+      snack: [[['roasted_chana', 1], ['buttermilk', 1]], [['sprouts', 1], ['green_tea', 1]], [['makhana', 1], ['apple', 1]]],
+      dinner: [[['phulka', 2], ['soya_chunks', 0.5], ['mixed_veg', 1], ['green_salad', 1]], [['tofu', 1], ['quinoa', 1], ['veg_soup', 1]], [['paneer_tikka', 1], ['veg_soup', 1], ['green_salad', 1]]],
+      post: [[['whey', 1], ['banana', 0.5]], [['plant_protein', 1], ['apple', 0.5]], [['sattu', 1], ['banana', 0.5]]]
+    }
+  },
+  {
+    id: 'lowgi', name: 'Low-GI Balanced Weight Reduction', sub: 'Steady energy, high fibre', icon: 'fa-scale-balanced',
+    desc: 'Slow carbohydrates, millets and legumes keep blood sugar steady and hunger in check.',
+    meals: {
+      early: [[['chia', 1], ['green_tea', 1]], [['almonds', 1], ['green_tea', 1]]],
+      breakfast: [[['oats', 1], ['skim_milk', 1], ['walnuts', 0.5]], [['moong_chilla', 2], ['curd', 1]], [['daliya', 1], ['greek_yogurt', 0.5]]],
+      lunch: [[['multigrain_roti', 2], ['moong_dal', 1], ['bhindi', 1], ['green_salad', 1]], [['quinoa', 1], ['chana_dal', 1], ['green_salad', 1]], [['brown_rice', 1], ['sambar', 1], ['mixed_veg', 1]]],
+      snack: [[['guava', 1], ['roasted_chana', 1]], [['sprouts', 1], ['buttermilk', 1]], [['apple', 1], ['peanut_butter', 1]]],
+      dinner: [[['moong_dal', 1], ['jain_sabzi', 1], ['multigrain_roti', 1], ['green_salad', 1]], [['palak_paneer', 1], ['phulka', 2]], [['veg_soup', 1], ['tofu', 1], ['green_salad', 1]]],
+      post: [[['greek_yogurt', 1], ['orange', 1]], [['whey', 1], ['apple', 0.5]]]
+    }
+  },
+  {
+    id: 'pro', name: 'Quick Working-Professional Plan', sub: '≤10 min prep, desk-friendly', icon: 'fa-briefcase',
+    desc: 'Grab-and-go vegetarian meals that fit a busy office day without sacrificing protein.',
+    meals: {
+      early: [[['masala_chai', 1], ['almonds', 1]], [['green_tea', 1], ['walnuts', 1]]],
+      breakfast: [[['oats', 1], ['milk', 1], ['banana', 0.5]], [['veg_sandwich', 1], ['greek_yogurt', 0.5]], [['idli', 1.5], ['sambar', 1]]],
+      lunch: [[['roti', 2], ['rajma', 1], ['curd', 1]], [['khichdi', 1], ['curd', 1], ['green_salad', 1]], [['veg_sandwich', 1], ['sprouts', 1], ['buttermilk', 1]]],
+      snack: [[['makhana', 1], ['green_tea', 1]], [['roasted_chana', 1], ['orange', 1]], [['sattu', 1]]],
+      dinner: [[['paneer_bhurji', 1], ['phulka', 2]], [['moong_dal', 1], ['brown_rice', 1], ['green_salad', 1]], [['tofu', 1], ['mixed_veg', 1], ['phulka', 1]]],
+      post: [[['whey', 1]], [['soy_milk', 1], ['banana', 0.5]]]
+    }
+  },
+  {
+    id: 'jain', name: 'Jain / No-Onion-No-Garlic Plan', sub: 'Satvik & root-vegetable free', icon: 'fa-hands-praying',
+    desc: 'Only Jain-friendly items: no onion, garlic, potato or other root vegetables.',
+    meals: {
+      early: [[['almonds', 1], ['walnuts', 0.5]], [['coconut_water', 1], ['almonds', 1]]],
+      breakfast: [[['jain_poha', 1], ['greek_yogurt', 0.5]], [['moong_chilla', 2], ['curd', 1]], [['idli', 1.5], ['milk', 0.5]]],
+      lunch: [[['roti', 2], ['jain_dal', 1], ['jain_sabzi', 1], ['curd', 0.5]], [['khichdi', 1], ['curd', 1], ['green_salad', 1]], [['multigrain_roti', 2], ['chana_dal', 1], ['bhindi', 1]]],
+      snack: [[['makhana', 1], ['buttermilk', 1]], [['roasted_chana', 1], ['papaya', 1]], [['dhokla', 1], ['green_tea', 1]]],
+      dinner: [[['phulka', 2], ['lowfat_paneer', 0.75], ['jain_sabzi', 1]], [['tofu', 1], ['jain_dal', 1], ['phulka', 1]], [['soya_chunks', 0.5], ['bhindi', 1], ['phulka', 2]]],
+      post: [[['whey', 1], ['papaya', 0.5]], [['skim_milk', 1], ['guava', 1]]]
+    }
+  }
+];
+
+/* ---------- State ---------- */
+function defaultProfile() {
+  return {
+    name: 'Miyee Athlete', age: 32, gender: 'male', height: 172, lifestyle: 'sedentary',
+    startWeight: 86, startDate: todayStr(), currentWeight: 86, targetWeight: 74, weeklyRate: 0.5,
+    stepGoal: 10000, waterAuto: true, waterGoal: 3000, cardioGoal: 30,
+    customTargets: false, customCalories: 1700, customProtein: 110, customCarbs: 190, customFat: 50
+  };
+}
+function defaultState() {
+  const now = new Date().toISOString();
+  return {
+    schema: SCHEMA, version: 1,
+    profile: defaultProfile(),
+    logs: {},
+    customFoods: [],
+    settings: {
+      theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+      demoDismissed: false,
+      planner: { template: 'hp_indian', calories: 'auto', swaps: {} },
+      cf: { url: '', token: '', auto: false, lastPush: null, lastPull: null, status: 'idle', message: 'Not configured' }
+    },
+    meta: { created: now, updated: now }
+  };
+}
+const emptyLog = () => ({ steps: 0, water: 0, foods: [], cardio: [], bio: {} });
+
+function sanitizeLog(l) {
+  const out = emptyLog();
+  if (!l || typeof l !== 'object') return out;
+  out.steps = Math.max(0, Math.round(num(l.steps)));
+  out.water = Math.max(0, Math.round(num(l.water)));
+  out.foods = (Array.isArray(l.foods) ? l.foods : []).filter((f) => f && f.name && !isNonVeg(f.name)).map((f) => ({
+    id: String(f.id || uid()), fid: String(f.fid || ''), name: String(f.name).slice(0, 80), serving: String(f.serving || '1 serving').slice(0, 60),
+    meal: MEALS.some((m) => m.id === f.meal) ? f.meal : 'snack', qty: Math.max(0, num(f.qty, 1)),
+    kcal: Math.max(0, num(f.kcal)), p: Math.max(0, num(f.p)), c: Math.max(0, num(f.c)), f: Math.max(0, num(f.f)), fib: Math.max(0, num(f.fib))
+  }));
+  out.cardio = (Array.isArray(l.cardio) ? l.cardio : []).filter((c) => c && ACTIVITIES[c.type]).map((c) => ({
+    id: String(c.id || uid()), type: c.type, dur: Math.max(0, num(c.dur)), intensity: clamp(Math.round(num(c.intensity, 1)), 0, 2),
+    kcal: Math.max(0, num(c.kcal)), manual: !!c.manual, notes: String(c.notes || '').slice(0, 200)
+  }));
+  const b = l.bio && typeof l.bio === 'object' ? l.bio : {};
+  ['weight', 'waist', 'sleep', 'energy'].forEach((k) => { if (b[k] !== undefined && b[k] !== null && b[k] !== '' && Number.isFinite(num(b[k], NaN))) out.bio[k] = num(b[k]); });
+  return out;
+}
+
+function sanitizeState(s) {
+  if (!s || typeof s !== 'object') throw new Error('Backup is not a valid object');
+  if (s.schema && s.schema !== SCHEMA) throw new Error(`Unsupported schema "${s.schema}"`);
+  if (!s.profile || typeof s.profile !== 'object') throw new Error('Backup is missing a profile');
+  if (s.logs && typeof s.logs !== 'object') throw new Error('Backup logs are malformed');
+  const d = defaultState();
+  const p = { ...d.profile };
+  Object.keys(p).forEach((k) => {
+    if (s.profile[k] === undefined) return;
+    if (typeof p[k] === 'number') p[k] = num(s.profile[k], p[k]);
+    else if (typeof p[k] === 'boolean') p[k] = !!s.profile[k];
+    else p[k] = String(s.profile[k]);
+  });
+  if (!LIFESTYLES[p.lifestyle]) p.lifestyle = 'sedentary';
+  if (!['male', 'female'].includes(p.gender)) p.gender = 'male';
+  if (!isDateKey(p.startDate)) p.startDate = todayStr();
+  const logs = {};
+  Object.entries(s.logs || {}).forEach(([k, v]) => { if (isDateKey(k)) logs[k] = sanitizeLog(v); });
+  const customFoods = (Array.isArray(s.customFoods) ? s.customFoods : []).filter((f) => f && f.name && !isNonVeg(f.name)).map((f) => ({
+    id: String(f.id || 'c_' + uid()), name: String(f.name).slice(0, 80), serving: String(f.serving || '1 serving').slice(0, 60), cat: 'Custom',
+    kcal: Math.max(0, num(f.kcal)), p: Math.max(0, num(f.p)), c: Math.max(0, num(f.c)), f: Math.max(0, num(f.f)), fib: Math.max(0, num(f.fib)), tags: [], builtin: false
+  }));
+  const settings = { ...d.settings, ...(s.settings || {}) };
+  settings.cf = { ...d.settings.cf, ...((s.settings || {}).cf || {}) };
+  settings.planner = { ...d.settings.planner, ...((s.settings || {}).planner || {}) };
+  if (!['light', 'dark'].includes(settings.theme)) settings.theme = d.settings.theme;
+  return { schema: SCHEMA, version: 1, profile: p, logs, customFoods, settings, meta: { ...d.meta, ...(s.meta || {}) } };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return sanitizeState(JSON.parse(raw));
+  } catch (e) { console.warn('MiyeeFit: could not load vault, starting fresh', e); }
+  return defaultState();
+}
+
+let state = loadState();
+const ui = {
+  view: 'dashboard', date: todayStr(), chartRange: 7,
+  foodQuery: '', foodCat: 'All', foodMeal: null, foodQty: 1,
+  cardioType: 'brisk_walk', cardioIntensity: 1, cheatMode: 'protein'
+};
+
+function save(opts = {}) {
+  state.meta.updated = new Date().toISOString();
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch (e) { toast('Local storage is full — export a backup and prune old data.', 'error'); }
+  if (!opts.skipSync) scheduleAutoSync();
+}
+
+const getLog = (d) => state.logs[d] || emptyLog();
+function ensureLog(d) { if (!state.logs[d]) state.logs[d] = emptyLog(); return state.logs[d]; }
+function pruneLog(d) {
+  const l = state.logs[d]; if (!l) return;
+  if (!l.steps && !l.water && !l.foods.length && !l.cardio.length && !Object.keys(l.bio).length) delete state.logs[d];
+}
+const allFoods = () => FOOD_DB.concat(state.customFoods);
+const findFood = (id) => allFoods().find((f) => f.id === id);
+
+/* ---------- Science Engine ---------- */
+function latestWeightEntry(upTo) {
+  const keys = Object.keys(state.logs).filter((k) => state.logs[k].bio && state.logs[k].bio.weight > 0 && (!upTo || k <= upTo)).sort();
+  if (!keys.length) return null;
+  const k = keys[keys.length - 1];
+  return { date: k, weight: state.logs[k].bio.weight };
+}
+function weightAt(date) { const e = latestWeightEntry(date); return e ? e.weight : (state.profile.currentWeight || state.profile.startWeight || 70); }
+function bmrFor(w) { const p = state.profile; return 10 * w + 6.25 * p.height - 5 * p.age + (p.gender === 'female' ? -161 : 5); }
+function strideCm() { return state.profile.height * (state.profile.gender === 'female' ? 0.413 : 0.415); }
+const stepKcal = (steps, w) => steps * w * 0.0005;
+const minCalories = () => state.profile.gender === 'female' ? 1200 : 1500;
+
+function targets() {
+  const p = state.profile;
+  const w = p.currentWeight || p.startWeight;
+  const bmr = bmrFor(w);
+  const tdee = bmr * (LIFESTYLES[p.lifestyle] || LIFESTYLES.sedentary).factor;
+  const plannedDeficit = p.weeklyRate * KCAL_PER_KG / 7;
+  let kcal = tdee - plannedDeficit;
+  const floored = kcal < minCalories();
+  kcal = Math.max(minCalories(), kcal);
+  const proteinMin = 1.2 * p.targetWeight, proteinMax = 1.6 * p.targetWeight;
+  let protein = 1.4 * p.targetWeight;
+  let fat = kcal * 0.27 / 9;
+  let carbs = Math.max(50, (kcal - protein * 4 - fat * 9) / 4);
+  if (p.customTargets) { kcal = p.customCalories; protein = p.customProtein; carbs = p.customCarbs; fat = p.customFat; }
+  const fiber = Math.max(25, kcal / 1000 * 14);
+  const water = p.waterAuto ? Math.round(w * 35 / 250) * 250 : p.waterGoal;
+  const effectiveDeficit = tdee - kcal;
+  return { bmr, tdee, plannedDeficit, effectiveDeficit, kcal, floored, protein, proteinMin, proteinMax, fat, carbs, fiber, water, steps: p.stepGoal, cardio: p.cardioGoal };
+}
+
+function bmiInfo(w = state.profile.currentWeight) {
+  const h = state.profile.height / 100;
+  const bmi = w / (h * h);
+  const who = bmi < 18.5 ? ['Underweight', 'amber'] : bmi < 25 ? ['Normal', 'green'] : bmi < 30 ? ['Overweight', 'amber'] : ['Obese', 'red'];
+  const asian = bmi < 18.5 ? ['Underweight', 'amber'] : bmi < 23 ? ['Normal', 'green'] : bmi < 25 ? ['Overweight', 'amber'] : ['Obese', 'red'];
+  return { bmi, who, asian };
+}
+
+function daySummary(date) {
+  const l = getLog(date);
+  const w = weightAt(date);
+  const bmr = bmrFor(w);
+  const intake = sum(l.foods, (f) => f.kcal * f.qty);
+  const p = sum(l.foods, (f) => f.p * f.qty), c = sum(l.foods, (f) => f.c * f.qty), f = sum(l.foods, (x) => x.f * x.qty), fib = sum(l.foods, (x) => x.fib * x.qty);
+  const sKcal = stepKcal(l.steps, w);
+  const cKcal = sum(l.cardio, (x) => x.kcal);
+  const cMin = sum(l.cardio, (x) => x.dur);
+  const burnt = bmr + sKcal + cKcal;
+  let bmrSoFar = bmr;
+  if (date === todayStr()) { const n = new Date(); bmrSoFar = bmr * ((n.getHours() * 60 + n.getMinutes()) / 1440); }
+  return {
+    date, log: l, weight: w, bmr, bmrSoFar, intake, p, c, f, fib, stepKcal: sKcal, cardioKcal: cKcal, cardioMin: cMin, burnt,
+    deficit: burnt - intake, steps: l.steps, water: l.water, distance: l.steps * strideCm() / 100000,
+    hasFood: l.foods.length > 0, hasAny: l.foods.length > 0 || l.steps > 0 || l.water > 0 || l.cardio.length > 0
+  };
+}
+
+function streak() {
+  let d = todayStr(), n = 0;
+  if (!daySummary(d).hasAny) d = addDays(d, -1);
+  while (daySummary(d).hasAny) { n++; d = addDays(d, -1); if (n > 3650) break; }
+  return n;
+}
+
+function linSlope(points) { // points: [{x, y}] → slope per x unit
+  const n = points.length; if (n < 2) return 0;
+  const mx = sum(points, (p) => p.x) / n, my = sum(points, (p) => p.y) / n;
+  const den = sum(points, (p) => (p.x - mx) ** 2);
+  return den ? sum(points, (p) => (p.x - mx) * (p.y - my)) / den : 0;
+}
+
+function weightTrend(endDate, days = 14) {
+  const start = addDays(endDate, -(days - 1));
+  const pts = dateRange(endDate, days).map((d) => ({ d, w: getLog(d).bio.weight })).filter((x) => x.w > 0).map((x) => ({ x: daysBetween(start, x.d), y: x.w, d: x.d }));
+  const slope = linSlope(pts);
+  const foodDays = dateRange(endDate, days).map(daySummary).filter((s) => s.hasFood);
+  const avgDeficit = foodDays.length ? sum(foodDays, (s) => s.deficit) / foodDays.length : 0;
+  return { points: pts, weeklyChange: slope * 7, expectedWeekly: -(avgDeficit * 7 / KCAL_PER_KG), avgDeficit, foodDays: foodDays.length, span: pts.length >= 2 ? pts[pts.length - 1].x - pts[0].x : 0 };
+}
+
+function projection() {
+  const p = state.profile;
+  const remaining = Math.max(0, p.currentWeight - p.targetWeight);
+  const tr = weightTrend(todayStr(), 14);
+  let perDay = tr.avgDeficit > 50 ? tr.avgDeficit / KCAL_PER_KG : 0;
+  const basis = perDay ? 'your 14-day average deficit' : 'your target weekly rate';
+  if (!perDay) perDay = p.weeklyRate / 7;
+  const daysNeeded = remaining > 0 ? Math.ceil(remaining / perDay) : 0;
+  const planDays = remaining > 0 ? Math.ceil(remaining / (p.weeklyRate / 7)) : 0;
+  return {
+    remaining, perDay, basis, daysNeeded,
+    date: remaining > 0 ? addDays(todayStr(), daysNeeded) : todayStr(),
+    planDate: remaining > 0 ? addDays(todayStr(), planDays) : todayStr(),
+    lost: p.startWeight - p.currentWeight,
+    pct: p.startWeight > p.targetWeight ? clamp((p.startWeight - p.currentWeight) / (p.startWeight - p.targetWeight), 0, 1) : (remaining === 0 ? 1 : 0)
+  };
+}
+
+/* ---------- Scope of Improvement: Smart Diagnostic Engine ---------- */
+const PROTEIN_FIXES = ['soya_chunks', 'lowfat_paneer', 'whey', 'greek_yogurt', 'tofu', 'plant_protein', 'moong_chilla', 'sprouts', 'roasted_chana'];
+
+function analyze(date) {
+  const t = targets();
+  const s = daySummary(date);
+  const p = state.profile;
+  const isToday = date === todayStr();
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60;
+  const audits = [];
+  const pts = {};
+  const statusPts = { green: 1, amber: 0.6, red: 0.2, gray: 0 };
+
+  // 1. Calorie Deficit Audit
+  {
+    let st, head, det;
+    const def = s.deficit;
+    const dayOpen = isToday && hour < 20;
+    if (!s.hasFood) { st = 'gray'; head = 'No food logged yet'; det = `Log your meals to audit today's energy balance. Your target intake is ${fmt(t.kcal)} kcal against a TDEE of ~${fmt(t.tdee)} kcal.`; }
+    else if (s.intake < 1200 && !dayOpen) { st = 'red'; head = `Under-eating: only ${fmt(s.intake)} kcal`; det = `Intake below 1,200 kcal risks muscle loss, low energy and metabolic slow-down. Add a protein-rich meal (e.g. dal + 2 roti + curd ≈ 450 kcal) to reach at least ${fmt(Math.max(1200, t.kcal - 200))} kcal.`; }
+    else if (def < 0) { st = 'red'; head = `Calorie surplus of ${fmt(-def)} kcal`; det = `You consumed ${fmt(s.intake)} kcal but burned ${fmt(s.burnt)} kcal. Trim ~${fmt(-def + 400)} kcal tomorrow (swap rice for phulka, skip fried snacks) or add ${Math.ceil((-def + 300) / Math.max(1, metKcal('brisk_walk', 1, 1, s.weight)))} min of brisk walking.`; }
+    else if (def < 300) { st = 'amber'; head = `Mild deficit: ${fmt(def)} kcal`; det = `Fat loss will be slow (~${r2(def * 7 / KCAL_PER_KG)} kg/week). The optimal window is 300–600 kcal. ${dayOpen ? 'Your day is still open — keep dinner light.' : 'Add 2,000 steps or trim 150 kcal of carbs.'}`; }
+    else if (def <= 600) { st = 'green'; head = `Optimal fat-loss deficit: ${fmt(def)} kcal`; det = `Excellent! You're in the 300–600 kcal sweet spot, pacing ~${r2(def * 7 / KCAL_PER_KG)} kg/week of fat loss while protecting muscle.`; }
+    else if (def <= 1000) { st = dayOpen ? 'green' : 'amber'; head = `${dayOpen ? 'Large deficit so far' : 'Aggressive deficit'}: ${fmt(def)} kcal`; det = dayOpen ? `Your remaining meals still need to be logged. Aim to finish around ${fmt(t.kcal)} kcal.` : `Above 600 kcal raises hunger and muscle-loss risk. Consider adding ${fmt(def - 500)} kcal of protein-rich food.`; }
+    else { st = dayOpen ? 'amber' : 'red'; head = `Excessive deficit: ${fmt(def)} kcal`; det = `A deficit beyond 1,000 kcal is hard to sustain. ${dayOpen ? 'Make sure you log and eat your remaining meals.' : `Increase intake by ~${fmt(def - 500)} kcal with dal, paneer or curd.`}`; }
+    if (s.hasFood && s.intake < 1200 && dayOpen && st !== 'red') det += ` Intake so far is ${fmt(s.intake)} kcal — ensure you eat at least 1,200 kcal by day end.`;
+    pts.calorie = 25 * statusPts[st];
+    audits.push({ key: 'calorie', title: 'Calorie Deficit Audit', icon: 'fa-scale-unbalanced', color: 'var(--c-intake)', st, head, det,
+      metric: `${fmt(s.intake)} in • ${fmt(s.burnt)} out`, pct: s.burnt ? clamp(def / 600, 0, 1) : 0 });
+  }
+
+  // 2. Pure Veg Protein Adequacy
+  {
+    let st, head, det;
+    const min = t.proteinMin, max = t.proteinMax;
+    const fixes = [];
+    if (s.p >= min) { st = 'green'; head = `Protein on target: ${r1(s.p)} g`; det = `You hit ${r1(s.p / p.targetWeight)} g/kg of target weight (goal 1.2–1.6 g/kg = ${Math.round(min)}–${Math.round(max)} g). Great for satiety and lean-mass retention.`; }
+    else {
+      const gap = min - s.p;
+      st = s.p >= 0.7 * min ? 'amber' : 'red';
+      const opts = PROTEIN_FIXES.map(findFood).filter(Boolean).map((f) => ({ f, qty: f.p >= gap ? 1 : Math.min(2, Math.ceil(gap / f.p * 2) / 2) }))
+        ;
+      opts.slice(0, 3).forEach((o) => fixes.push(o));
+      const [a, b] = opts;
+      head = `${Math.round(gap)} g short on protein`;
+      det = `You are ${Math.round(gap)}g short on protein ${isToday ? 'today' : 'for this day'} (${r1(s.p)} g of ${Math.round(min)} g minimum). Add ${a.f.serving} ${a.f.name} (+${r1(a.f.p)}g protein) or ${b.f.serving} ${b.f.name} (+${r1(b.f.p)}g protein).`;
+    }
+    pts.protein = 20 * clamp(s.p / min, 0, 1);
+    audits.push({ key: 'protein', title: 'Pure Veg Protein Adequacy', icon: 'fa-seedling', color: 'var(--c-intake)', st, head, det, fixes,
+      metric: `${r1(s.p)} / ${Math.round(min)}–${Math.round(max)} g`, pct: clamp(s.p / min, 0, 1) });
+  }
+
+  // 3. Hydration Consistency
+  {
+    let st, head, det;
+    const goal = t.water;
+    const ratio = goal ? s.water / goal : 0;
+    if (isToday) {
+      const expectedFrac = clamp((hour - 7) / (22 - 7), 0, 1);
+      const expected = goal * expectedFrac;
+      if (s.water >= goal) { st = 'green'; head = 'Fully hydrated'; det = `${fmt(s.water)} ml logged — daily goal of ${fmt(goal)} ml achieved.`; }
+      else if (expected > 0 && s.water < expected * 0.8) { st = 'red'; head = 'Behind hydration schedule'; det = `By now you should have had ~${fmt(expected)} ml, but logged ${fmt(s.water)} ml. Drink ${Math.ceil((expected - s.water) / 250)} glass(es) in the next hour to reduce dehydration risk.`; }
+      else { st = 'amber'; head = 'On pace — keep sipping'; det = `${fmt(s.water)} of ${fmt(goal)} ml (${Math.round(ratio * 100)}%). ${fmt(goal - s.water)} ml to go — about one glass every ${Math.max(30, Math.round(((22 - Math.min(hour, 21.5)) * 60) / Math.max(1, Math.ceil((goal - s.water) / 250))))} minutes until 10 PM.`; }
+    } else {
+      if (ratio >= 1) { st = 'green'; head = 'Hydration goal met'; det = `${fmt(s.water)} ml of ${fmt(goal)} ml.`; }
+      else if (ratio >= 0.8) { st = 'amber'; head = `Slightly under: ${Math.round(ratio * 100)}%`; det = `${fmt(goal - s.water)} ml short of goal. Keep a 1 L bottle at your desk.`; }
+      else { st = 'red'; head = `Dehydration risk: ${Math.round(ratio * 100)}%`; det = `Only ${fmt(s.water)} ml of ${fmt(goal)} ml. Under 80% of target impairs fat metabolism, energy and appetite control.`; }
+    }
+    pts.water = 15 * clamp(ratio, 0, 1);
+    audits.push({ key: 'water', title: 'Hydration Consistency', icon: 'fa-droplet', color: 'var(--c-water)', st, head, det, metric: `${fmt(s.water)} / ${fmt(goal)} ml`, pct: clamp(ratio, 0, 1) });
+  }
+
+  // 4. NEAT & Step Deficit
+  {
+    let st, head, det;
+    const goal = t.steps, gap = Math.max(0, goal - s.steps);
+    const mins = Math.ceil(gap / 110);
+    if (gap === 0) { st = 'green'; head = `Step goal smashed: ${fmt(s.steps)}`; det = `${r1(s.distance)} km covered and ~${fmt(s.stepKcal)} kcal burned through NEAT.`; }
+    else { st = s.steps >= 0.7 * goal ? 'amber' : 'red'; head = `${fmt(gap)} steps to go`; det = `Close the gap with ~${mins} minutes of brisk walking (≈110 steps/min), burning an extra ~${fmt(stepKcal(gap, s.weight))} kcal. Try a 10-minute walk after each meal.`; }
+    pts.steps = 15 * clamp(s.steps / goal, 0, 1);
+    audits.push({ key: 'steps', title: 'NEAT & Step Deficit', icon: 'fa-shoe-prints', color: 'var(--c-steps)', st, head, det, metric: `${fmt(s.steps)} / ${fmt(goal)}`, pct: clamp(s.steps / goal, 0, 1), walkMins: mins });
+  }
+
+  // 5. Cardio & Active Burn Consistency
+  {
+    let st, head, det;
+    const week = dateRange(date, 7).map(daySummary);
+    const weekMin = sum(week, (x) => x.cardioMin);
+    const weekKcal = sum(week, (x) => x.cardioKcal);
+    const activeDays = week.filter((x) => x.cardioMin > 0).length;
+    if (weekMin >= 300) { st = 'green'; head = `Elite volume: ${Math.round(weekMin)} min/week`; det = `Above the 300 min upper benchmark across ${activeDays} active days (${fmt(weekKcal)} kcal). Prioritise sleep and protein for recovery.`; }
+    else if (weekMin >= 150) { st = 'green'; head = `${Math.round(weekMin)} min this week`; det = `Within the WHO 150–300 min/week benchmark across ${activeDays} active days, burning ${fmt(weekKcal)} kcal.`; }
+    else if (weekMin >= 75) { st = 'amber'; head = `${Math.round(150 - weekMin)} min short of 150`; det = `${Math.round(weekMin)} min logged over the last 7 days. Add ${Math.ceil((150 - weekMin) / 30)} × 30-min sessions (brisk walk, cycling or Surya Namaskar).`; }
+    else { st = 'red'; head = `Low activity: ${Math.round(weekMin)} min/week`; det = `Aim for at least 150 minutes of moderate cardio weekly. Start with ${Math.max(20, t.cardio)} min/day on 5 days.`; }
+    pts.cardio = 5 * clamp(s.cardioMin / Math.max(1, t.cardio), 0, 1) + 5 * clamp(weekMin / 150, 0, 1);
+    audits.push({ key: 'cardio', title: 'Cardio & Active Burn Consistency', icon: 'fa-heart-pulse', color: 'var(--c-burn)', st, head, det, metric: `${Math.round(weekMin)} / 150–300 min`, pct: clamp(weekMin / 150, 0, 1) });
+  }
+
+  // 6. Weight Plateau & Rate of Loss Alert
+  {
+    let st, head, det;
+    const tr = weightTrend(date, 14);
+    const actual = tr.weeklyChange, expected = tr.expectedWeekly;
+    if (tr.points.length < 3 || tr.span < 4) { st = 'gray'; head = 'Need more weigh-ins'; det = `Log your morning weight at least 3 times across 5+ days to unlock plateau detection (${tr.points.length} weigh-in(s) in the last 14 days).`; }
+    else if (actual > 0.1) { st = 'red'; head = `Gaining ${r2(actual)} kg/week`; det = `Your trend is upward while the deficit model expects ${r2(expected)} kg/week. Re-check portion sizes, oils/ghee and weekend intake.`; }
+    else if (expected < -0.2 && actual > expected * 0.3) { st = 'red'; head = 'Weight plateau detected'; det = `Your logged deficit predicts ${r2(expected)} kg/week but the scale shows ${r2(actual)} kg/week. Likely causes: water retention, under-logged food, or adaptive NEAT. Add a refeed day at maintenance, raise steps by 2,000 and audit hidden oils.`; }
+    else if (-actual > Math.max(1.0, s.weight * 0.01)) { st = 'amber'; head = `Very fast loss: ${r2(-actual)} kg/week`; det = `Losing over 1% body weight per week can cost muscle. Increase intake by 150–250 kcal and keep protein at ≥${Math.round(t.proteinMin)} g.`; }
+    else { st = 'green'; head = `On track: ${r2(-actual)} kg/week loss`; det = `Actual trend (${r2(actual)} kg/week) aligns with the deficit model (${r2(expected)} kg/week). Target pace is ${p.weeklyRate} kg/week.`; }
+    pts.weight = (getLog(date).bio.weight ? 4 : 0) + ({ green: 6, amber: 3, red: 0, gray: 2 })[st];
+    audits.push({ key: 'weight', title: 'Weight Plateau & Rate of Loss', icon: 'fa-weight-scale', color: 'var(--c-weight)', st, head, det, metric: tr.points.length >= 2 ? `${r2(actual)} vs ${r2(expected)} kg/wk` : `${tr.points.length} weigh-ins`, pct: tr.points.length >= 3 ? clamp(1 - Math.abs(actual - expected) / Math.max(0.3, Math.abs(expected) || 0.5), 0, 1) : 0 });
+  }
+
+  // 7. Recovery (sleep & energy) — supporting signal
+  {
+    const b = getLog(date).bio;
+    let st, head, det;
+    if (b.sleep === undefined && b.energy === undefined) { st = 'gray'; head = 'Recovery not logged'; det = 'Log sleep hours and energy level in the Daily Tracker check-in. 7–9 hours of sleep improves appetite regulation and fat loss.'; }
+    else if ((b.sleep ?? 7) >= 7 && (b.sleep ?? 7) <= 9.5 && (b.energy ?? 4) >= 3) { st = 'green'; head = `Well recovered${b.sleep !== undefined ? ` • ${b.sleep} h sleep` : ''}`; det = 'Good sleep and energy support hormones (leptin/ghrelin) that drive hunger control.'; }
+    else if ((b.sleep ?? 7) < 6 || (b.energy ?? 3) <= 2) { st = 'red'; head = 'Poor recovery'; det = `Sleep ${b.sleep ?? '—'} h, energy ${b.energy ?? '—'}/5. Short sleep raises hunger by up to 20%. Prioritise a 7-hour window and keep today's training light.`; }
+    else { st = 'amber'; head = 'Recovery could improve'; det = `Sleep ${b.sleep ?? '—'} h, energy ${b.energy ?? '—'}/5. Target 7–9 hours and limit screens 45 min before bed.`; }
+    pts.recovery = (b.sleep !== undefined ? (b.sleep >= 7 && b.sleep <= 9.5 ? 3 : b.sleep >= 6 ? 2 : 1) : 0) + (b.energy !== undefined ? b.energy / 5 * 2 : 0);
+    audits.push({ key: 'recovery', title: 'Sleep & Recovery', icon: 'fa-bed', color: '#6366F1', st, head, det, metric: `${b.sleep ?? '—'} h • ${b.energy ?? '—'}/5`, pct: b.sleep !== undefined ? clamp(b.sleep / 8, 0, 1) : 0 });
+  }
+
+  const score = Math.round(clamp(sum(Object.values(pts)), 0, 100));
+  return { date, score, audits, pts, summary: s, targets: t };
+}
+
+function scoreGrade(score) {
+  if (score >= 85) return { label: 'Elite', color: '#10B981', cls: 'pill-green' };
+  if (score >= 70) return { label: 'Strong', color: '#22C55E', cls: 'pill-green' };
+  if (score >= 50) return { label: 'Building', color: '#F59E0B', cls: 'pill-amber' };
+  if (score >= 30) return { label: 'Needs Work', color: '#F97316', cls: 'pill-amber' };
+  return { label: 'Getting Started', color: '#F43F5E', cls: 'pill-red' };
+}
+
+/* ---------- Meal plan builder ---------- */
+function planTargetKcal() { const c = state.settings.planner.calories; return c === 'auto' ? Math.round(targets().kcal) : num(c, 1800); }
+function buildPlan(templateId, targetKcal, swaps = {}) {
+  const tpl = PLAN_TEMPLATES.find((x) => x.id === templateId) || PLAN_TEMPLATES[0];
+  const base = MEALS.map((m) => {
+    const options = tpl.meals[m.id] || [];
+    const idx = options.length ? ((swaps[m.id] || 0) % options.length) : 0;
+    const items = (options[idx] || []).map(([fid, qty]) => ({ food: findFood(fid), qty })).filter((x) => x.food && x.qty > 0);
+    return { meal: m, idx, count: options.length, items };
+  });
+  const baseKcal = sum(base, (m) => sum(m.items, (i) => i.food.kcal * i.qty));
+  const factor = baseKcal ? targetKcal / baseKcal : 1;
+  base.forEach((m) => m.items.forEach((i) => { i.qty = Math.max(0.5, Math.round(i.qty * factor * 2) / 2); }));
+  // Greedy correction: half-serving rounding can drift; nudge energy-dense, non-protein items until within ±5% of target.
+  const all = base.flatMap((m) => m.items);
+  const total = () => sum(all, (i) => i.food.kcal * i.qty);
+  const flexible = all.filter((i) => i.food.cat !== 'Protein');
+  for (let guard = 0; guard < 40; guard++) {
+    const kc = total();
+    if (kc > targetKcal * 1.05) {
+      const pick = flexible.filter((i) => i.qty > 0.5).sort((x, y) => y.food.kcal * y.qty - x.food.kcal * x.qty)[0];
+      if (!pick) break; pick.qty -= 0.5;
+    } else if (kc < targetKcal * 0.95) {
+      const pick = flexible.filter((i) => ['Grains', 'Dals & Legumes', 'Breakfast', 'Fruits', 'Dairy & Alternatives'].includes(i.food.cat)).sort((x, y) => x.qty - y.qty)[0];
+      if (!pick) break; pick.qty += 0.5;
+    } else break;
+  }
+  base.forEach((m) => {
+    m.kcal = sum(m.items, (i) => i.food.kcal * i.qty); m.p = sum(m.items, (i) => i.food.p * i.qty);
+    m.c = sum(m.items, (i) => i.food.c * i.qty); m.f = sum(m.items, (i) => i.food.f * i.qty); m.fib = sum(m.items, (i) => i.food.fib * i.qty);
+  });
+  return { tpl, meals: base, factor, kcal: sum(base, (m) => m.kcal), p: sum(base, (m) => m.p), c: sum(base, (m) => m.c), f: sum(base, (m) => m.f), fib: sum(base, (m) => m.fib) };
+}
+
+
+/* =====================================================================
+ *  UI Framework: navigation, toasts, modals, helpers
+ * ===================================================================== */
+const VIEWS = [
+  { id: 'dashboard', label: 'Dashboard', short: 'Home', icon: 'fa-gauge-high' },
+  { id: 'tracker', label: 'Daily Tracker', short: 'Tracker', icon: 'fa-list-check' },
+  { id: 'insights', label: 'Scope of Improvement', short: 'Insights', icon: 'fa-wand-magic-sparkles' },
+  { id: 'planner', label: 'Veg Diet Planner', short: 'Diet', icon: 'fa-leaf' },
+  { id: 'profile', label: 'Profile & Biometrics', short: 'Profile', icon: 'fa-user-gear' },
+  { id: 'vault', label: 'Data Vault & Sync', short: 'Vault', icon: 'fa-cloud-arrow-up' }
+];
+
+function renderNav() {
+  $('sideNav').innerHTML = VIEWS.map((v) => `<button class="nav-item ${ui.view === v.id ? 'active' : ''}" onclick="go('${v.id}')"><i class="fa-solid ${v.icon} w-5 text-center"></i>${v.label}</button>`).join('');
+  $('bottomNav').innerHTML = VIEWS.map((v) => `<button class="bnav-item ${ui.view === v.id ? 'active' : ''}" onclick="go('${v.id}')"><i class="fa-solid ${v.icon} text-base"></i>${v.short}</button>`).join('');
+}
+
+function go(view) {
+  if (!VIEWS.some((v) => v.id === view)) view = 'dashboard';
+  ui.view = view;
+  if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
+  document.querySelectorAll('.view').forEach((el) => el.classList.toggle('hidden', el.id !== 'view-' + view));
+  renderNav();
+  renderView();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderView() {
+  const map = { dashboard: renderDashboard, tracker: renderTracker, insights: renderInsights, planner: renderPlanner, profile: renderProfile, vault: renderVault };
+  (map[ui.view] || renderDashboard)();
+}
+
+function refresh() { save(); renderHeader(); renderBanner(); renderView(); }
+
+function toast(msg, type = 'success') {
+  const icons = { success: 'fa-circle-check text-emerald-500', error: 'fa-circle-exclamation text-rose-500', info: 'fa-circle-info text-cyan-500', warn: 'fa-triangle-exclamation text-amber-500' };
+  const el = document.createElement('div');
+  el.className = 'toast-in pointer-events-auto flex items-start gap-3 rounded-2xl border border-amber-200 bg-white px-4 py-3 text-sm font-medium shadow-xl dark:border-white/10 dark:bg-zinc-800';
+  el.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} mt-0.5"></i><div class="flex-1">${esc(msg)}</div>`;
+  $('toasts').appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s, transform .3s'; el.style.opacity = '0'; el.style.transform = 'translateY(8px)'; setTimeout(() => el.remove(), 320); }, 3200);
+}
+
+function openModal(title, body, foot = '') {
+  $('modalTitle').innerHTML = title; $('modalBody').innerHTML = body;
+  $('modalFoot').innerHTML = foot || `<button class="btn btn-soft" onclick="closeModal()">Close</button>`;
+  $('modal').classList.remove('hidden'); $('modal').classList.add('flex');
+}
+function closeModal() { $('modal').classList.add('hidden'); $('modal').classList.remove('flex'); if (window._modalResolve) { const r = window._modalResolve; window._modalResolve = null; r(false); } }
+function confirmDialog({ title, message, confirmText = 'Confirm', danger = false, requireText = '' }) {
+  return new Promise((resolve) => {
+    openModal(esc(title), `<p class="text-sm leading-relaxed muted">${message}</p>${requireText ? `<div class="mt-4"><label class="label">Type <span class="mono text-rose-500">${esc(requireText)}</span> to confirm</label><input id="confirmInput" class="input" autocomplete="off"></div>` : ''}`,
+      `<button class="btn btn-soft" onclick="closeModal()">Cancel</button><button id="confirmOk" class="btn ${danger ? 'btn-danger' : 'btn-primary'}">${esc(confirmText)}</button>`);
+    window._modalResolve = resolve;
+    $('confirmOk').onclick = () => {
+      if (requireText && ($('confirmInput').value || '').trim() !== requireText) { toast(`Please type ${requireText} to confirm`, 'warn'); return; }
+      window._modalResolve = null; closeModal(); resolve(true);
+    };
+  });
+}
+
+function ring(pct, color, size = 120, stroke = 11, center = '') {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r, p = clamp(pct || 0, 0, 1);
+  return `<div class="relative shrink-0" style="width:${size}px;height:${size}px">
+    <svg width="${size}" height="${size}" class="-rotate-90"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}" class="ring-track" fill="none"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}" fill="none" stroke="${color}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}" style="transition:stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1)"/></svg>
+    <div class="absolute inset-0 flex flex-col items-center justify-center text-center leading-tight">${center}</div></div>`;
+}
+const bar = (pct, color, h = 'h-2') => `<div class="${h} w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-white/5"><div class="h-full rounded-full" style="width:${clamp(pct, 0, 1) * 100}%;background:${color};transition:width .7s ease"></div></div>`;
+const stPill = (st) => ({ green: '<span class="pill pill-green"><i class="fa-solid fa-circle-check"></i>On Track</span>', amber: '<span class="pill pill-amber"><i class="fa-solid fa-circle-half-stroke"></i>Improve</span>', red: '<span class="pill pill-red"><i class="fa-solid fa-triangle-exclamation"></i>Action</span>', gray: '<span class="pill pill-gray"><i class="fa-regular fa-circle"></i>No Data</span>' })[st];
+const stBorder = (st) => ({ green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-rose-500', gray: 'border-l-zinc-300 dark:border-l-zinc-600' })[st];
+
+/* ---------- Header ---------- */
+function renderHeader() {
+  const h = new Date().getHours();
+  const greet = h < 5 ? 'Burning the midnight oil' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const first = (state.profile.name || 'Athlete').trim().split(/\s+/)[0];
+  $('greeting').textContent = `${greet}, ${first} 👋`;
+  const isToday = ui.date === todayStr();
+  $('subGreeting').textContent = isToday ? fmtLong(ui.date) : `Viewing ${fmtLong(ui.date)} (${Math.abs(daysBetween(todayStr(), ui.date))} day(s) ago)`;
+  $('datePicker').value = ui.date; $('datePicker').max = todayStr();
+  $('nextBtn').disabled = isToday;
+  $('todayBtn').classList.toggle('ring-2', !isToday); $('todayBtn').classList.toggle('ring-amber-400', !isToday);
+  const st = streak();
+  $('streakVal').textContent = st; $('streakBadge').classList.toggle('hidden', false); $('streakBadge').classList.add('flex');
+  const a = analyze(ui.date); const g = scoreGrade(a.score);
+  $('scoreVal').textContent = a.score; $('scoreBadge').style.color = g.color; $('scoreBadge').title = `Daily Fitness Score: ${a.score}/100 (${g.label})`;
+  const dark = document.documentElement.classList.contains('dark');
+  $('themeIcon').className = `fa-solid ${dark ? 'fa-sun' : 'fa-moon'}`;
+  renderSyncIndicator();
+}
+
+function setDate(d) {
+  if (!isDateKey(d)) return;
+  if (d > todayStr()) { d = todayStr(); toast('Future dates cannot be logged', 'warn'); }
+  ui.date = d; renderHeader(); renderView();
+}
+function shiftDate(n) { setDate(addDays(ui.date, n)); }
+
+function toggleTheme() {
+  const dark = !document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', dark);
+  state.settings.theme = dark ? 'dark' : 'light';
+  save({ skipSync: true }); renderHeader(); renderView();
+}
+
+function renderBanner() {
+  const empty = Object.keys(state.logs).length === 0;
+  $('demoBanner').innerHTML = empty && !state.settings.demoDismissed ? `
+    <div class="fade-in mb-5 overflow-hidden rounded-2xl grad-amber p-[1px] shadow-lg shadow-amber-500/20">
+      <div class="flex flex-col gap-4 rounded-2xl bg-white/95 p-4 dark:bg-ink/95 sm:flex-row sm:items-center sm:p-5">
+        <div class="grad-amber flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white"><i class="fa-solid fa-wand-magic-sparkles text-xl"></i></div>
+        <div class="flex-1">
+          <div class="font-extrabold text-zinc-900 dark:text-white">Your vault is empty — take MiyeeFit Pro for a spin</div>
+          <div class="text-sm muted">Load a realistic 14-day pure-veg history to explore the charts, diagnostics and Fitness Score instantly. You can factory-reset any time from the Data Vault.</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-primary" onclick="loadDemoData()"><i class="fa-solid fa-bolt"></i>Load Sample 14-Day History</button>
+          <button class="btn btn-ghost" onclick="state.settings.demoDismissed=true;save({skipSync:true});renderBanner()" title="Start fresh">Start fresh</button>
+        </div>
+      </div>
+    </div>` : '';
+}
+
+/* =====================================================================
+ *  Module A: Executive Daily Dashboard
+ * ===================================================================== */
+let charts = {};
+function chartColors() {
+  const dark = document.documentElement.classList.contains('dark');
+  return { text: dark ? '#A1A1AA' : '#78716C', grid: dark ? 'rgba(255,255,255,0.06)' : 'rgba(180,83,9,0.09)', bg: dark ? '#18181B' : '#FFFFFF' };
+}
+function mkChart(id, cfg) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const el = $(id); if (!el || typeof Chart === 'undefined') return;
+  const cc = chartColors();
+  Chart.defaults.font.family = '"Plus Jakarta Sans", Inter, system-ui, sans-serif';
+  Chart.defaults.color = cc.text;
+  charts[id] = new Chart(el, cfg);
+}
+const baseScales = (yTitle) => { const cc = chartColors(); return {
+  x: { grid: { display: false }, ticks: { color: cc.text, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+  y: { grid: { color: cc.grid }, border: { display: false }, ticks: { color: cc.text }, title: { display: !!yTitle, text: yTitle, color: cc.text } }
+}; };
+
+function renderDashboard() {
+  const t = targets();
+  const s = daySummary(ui.date);
+  const a = analyze(ui.date);
+  const pr = projection();
+  const p = state.profile;
+  const isToday = ui.date === todayStr();
+  const g = scoreGrade(a.score);
+  const glasses = Math.max(1, Math.round(t.water / 250));
+  const filled = Math.floor(s.water / 250);
+  const net = s.intake - s.burnt;
+  const netState = !s.hasFood ? ['pill-gray', 'Awaiting food log'] : s.deficit >= 300 && s.deficit <= 600 ? ['pill-green', 'Optimal deficit'] : s.deficit > 600 ? ['pill-amber', 'Large deficit'] : s.deficit >= 0 ? ['pill-amber', 'Mild deficit'] : ['pill-red', 'Surplus'];
+
+  $('view-dashboard').innerHTML = `
+  <div class="fade-in space-y-5">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Executive <span class="text-grad">Dashboard</span></h1>
+        <p class="text-sm muted">${isToday ? 'Live snapshot for today' : 'Historical snapshot for ' + fmtLong(ui.date)} • Target ${fmt(t.kcal)} kcal • ${p.weeklyRate} kg/week plan</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="btn btn-soft" onclick="go('tracker')"><i class="fa-solid fa-plus"></i>Log Food / Cardio</button>
+        <button class="btn btn-primary" onclick="go('insights')"><i class="fa-solid fa-medal"></i>Score ${a.score} • ${g.label}</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <!-- Steps -->
+      <div class="card card-pad flex flex-col">
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-400/15"><i class="fa-solid fa-shoe-prints"></i></span>Steps Walked</div><span class="text-xs muted">Goal ${fmt(t.steps)}</span></div>
+        <div class="my-4 flex items-center gap-4">
+          ${ring(s.steps / t.steps, 'var(--c-steps)', 112, 11, `<div class="text-xl font-extrabold">${fmt(s.steps)}</div><div class="text-[10px] font-semibold uppercase muted">${Math.round(s.steps / t.steps * 100)}%</div>`)}
+          <div class="space-y-2 text-sm">
+            <div><div class="text-xs muted">Distance</div><div class="font-bold">${r2(s.distance)} km</div></div>
+            <div><div class="text-xs muted">Step burn</div><div class="font-bold text-rose-500">${fmt(s.stepKcal)} kcal</div></div>
+            <div><div class="text-xs muted">Remaining</div><div class="font-bold">${fmt(Math.max(0, t.steps - s.steps))}</div></div>
+          </div>
+        </div>
+        <div class="mt-auto grid grid-cols-3 gap-1.5">
+          <button class="btn btn-soft btn-sm" onclick="addSteps(500)">+500</button>
+          <button class="btn btn-soft btn-sm" onclick="addSteps(1000)">+1,000</button>
+          <button class="btn btn-soft btn-sm" onclick="addSteps(2500)">+2,500</button>
+        </div>
+        <div class="mt-2 flex gap-1.5"><input id="stepsCustom" type="number" inputmode="numeric" class="input !py-1.5" placeholder="Custom (±)" onkeydown="if(event.key==='Enter')addCustomSteps()"><button class="btn btn-primary btn-sm" onclick="addCustomSteps()">Add</button><button class="btn btn-ghost btn-sm" title="Set exact total" onclick="setStepsExact()"><i class="fa-solid fa-pen"></i></button></div>
+      </div>
+
+      <!-- Water -->
+      <div class="card card-pad flex flex-col">
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-100 text-cyan-600 dark:bg-cyan-400/15"><i class="fa-solid fa-droplet"></i></span>Water Intake</div><span class="text-xs muted">Goal ${r1(t.water / 1000)} L${p.waterAuto ? ' (auto)' : ''}</span></div>
+        <div class="my-4 flex items-center gap-5">
+          <div class="glass-vessel"><div class="glass-water" style="height:${clamp(s.water / t.water, 0, 1) * 100}%"></div></div>
+          <div>
+            <div class="text-3xl font-extrabold text-cyan-600 dark:text-cyan-400">${r2(s.water / 1000)}<span class="text-base font-bold"> L</span></div>
+            <div class="text-xs muted">${fmt(s.water)} / ${fmt(t.water)} ml • ${Math.round(s.water / t.water * 100)}%</div>
+            <div class="mt-2 text-xs font-semibold ${s.water >= t.water ? 'text-emerald-500' : 'text-cyan-600 dark:text-cyan-400'}">${s.water >= t.water ? '<i class="fa-solid fa-check"></i> Goal reached' : `${Math.ceil((t.water - s.water) / 250)} glasses to go`}</div>
+          </div>
+        </div>
+        <div class="mb-3 flex flex-wrap gap-1">${Array.from({ length: glasses }, (_, i) => `<button onclick="setWater(${(i + 1) * 250})" title="Set to ${(i + 1) * 250} ml" class="text-lg transition hover:scale-110 ${i < filled ? 'text-cyan-500' : 'text-zinc-300 dark:text-zinc-700'}"><i class="fa-solid fa-glass-water"></i></button>`).join('')}</div>
+        <div class="mt-auto grid grid-cols-3 gap-1.5">
+          <button class="btn btn-sm bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-400/10 dark:text-cyan-300" onclick="addWater(250)">+250ml</button>
+          <button class="btn btn-sm bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-400/10 dark:text-cyan-300" onclick="addWater(500)">+500ml</button>
+          <button class="btn btn-ghost btn-sm" onclick="addWater(-250)">−250ml</button>
+        </div>
+        <div class="mt-1 text-center text-[10px] muted">1 Glass = 250 ml • 1 Bottle = 500 ml</div>
+      </div>
+
+      <!-- Calorie balance -->
+      <div class="card card-pad flex flex-col">
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15"><i class="fa-solid fa-fire-burner"></i></span>Calorie Balance</div><span class="pill ${netState[0]}">${netState[1]}</span></div>
+        <div class="my-4 flex items-center gap-4">
+          ${ring(s.intake / t.kcal, 'var(--c-intake)', 112, 11, `<div class="text-xl font-extrabold">${fmt(s.intake)}</div><div class="text-[10px] font-semibold uppercase muted">of ${fmt(t.kcal)}</div>`)}
+          <div class="flex-1 space-y-1.5 text-xs">
+            <div class="flex justify-between"><span class="muted">BMR${isToday ? ' (daily)' : ''}</span><b>${fmt(s.bmr)}</b></div>
+            <div class="flex justify-between"><span class="muted">Steps burn</span><b>${fmt(s.stepKcal)}</b></div>
+            <div class="flex justify-between"><span class="muted">Cardio burn</span><b>${fmt(s.cardioKcal)}</b></div>
+            <div class="flex justify-between border-t border-amber-100 pt-1.5 dark:border-white/5"><span class="font-semibold text-rose-500">Total burnt</span><b class="text-rose-500">${fmt(s.burnt)}</b></div>
+          </div>
+        </div>
+        <div class="mt-auto rounded-xl ${net <= 0 ? 'bg-emerald-50 dark:bg-emerald-400/10' : 'bg-rose-50 dark:bg-rose-400/10'} p-3">
+          <div class="flex items-center justify-between"><span class="text-xs font-semibold muted">Net ${net <= 0 ? 'Deficit' : 'Surplus'}</span><span class="text-lg font-extrabold ${net <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}">${net <= 0 ? '−' : '+'}${fmt(Math.abs(net))} kcal</span></div>
+          <div class="text-[11px] muted">${s.hasFood ? `≈ ${r2(Math.abs(net) / KCAL_PER_KG * 1000)} g fat ${net <= 0 ? 'burned' : 'stored'} • Target deficit ${fmt(t.effectiveDeficit)} kcal` : 'Log meals to compute your real balance'}${isToday ? ` • BMR so far: ${fmt(s.bmrSoFar)}` : ''}</div>
+        </div>
+      </div>
+
+      <!-- Weight -->
+      <div class="card card-pad flex flex-col">
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-400/15"><i class="fa-solid fa-weight-scale"></i></span>Weight Reduction</div><span class="text-xs font-bold text-violet-600 dark:text-violet-400">${Math.round(pr.pct * 100)}%</span></div>
+        <div class="my-4 grid grid-cols-3 text-center">
+          <div><div class="text-[10px] font-semibold uppercase muted">Start</div><div class="text-lg font-extrabold">${r1(p.startWeight)}</div></div>
+          <div><div class="text-[10px] font-semibold uppercase muted">Current</div><div class="text-lg font-extrabold text-violet-600 dark:text-violet-400">${r1(p.currentWeight)}</div></div>
+          <div><div class="text-[10px] font-semibold uppercase muted">Target</div><div class="text-lg font-extrabold">${r1(p.targetWeight)}</div></div>
+        </div>
+        ${bar(pr.pct, 'linear-gradient(90deg,#A78BFA,#7C3AED)', 'h-3')}
+        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div class="stat-box !p-2"><div class="muted">Lost so far</div><div class="font-bold ${pr.lost >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}">${pr.lost >= 0 ? '−' : '+'}${r1(Math.abs(pr.lost))} kg</div></div>
+          <div class="stat-box !p-2"><div class="muted">Remaining</div><div class="font-bold">${r1(pr.remaining)} kg</div></div>
+        </div>
+        <div class="mt-2 text-[11px] muted">${pr.remaining > 0 ? `<i class="fa-solid fa-flag-checkered text-violet-500"></i> Projected: <b class="text-zinc-700 dark:text-zinc-200">${fmtDate(pr.date, { day: 'numeric', month: 'short', year: 'numeric' })}</b> based on ${pr.basis}` : '<i class="fa-solid fa-trophy text-amber-500"></i> Target weight achieved!'}</div>
+        <div class="mt-auto flex gap-1.5 pt-3"><input id="dashWeight" type="number" step="0.1" class="input !py-1.5" placeholder="${getLog(ui.date).bio.weight ? 'Logged ' + getLog(ui.date).bio.weight + ' kg' : 'Log weight (kg)'}" onkeydown="if(event.key==='Enter')quickWeight()"><button class="btn btn-sm bg-violet-500 text-white hover:bg-violet-600" onclick="quickWeight()">Log</button></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div class="card card-pad xl:col-span-2">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div><div class="h-title">Weight Trend vs Target Trajectory</div><div class="text-xs muted">Morning weigh-ins against your ${p.weeklyRate} kg/week glide path</div></div>
+          <div class="flex gap-1">${[7, 30].map((r) => `<button class="chip ${ui.chartRange === r ? 'active' : ''}" onclick="ui.chartRange=${r};renderDashboard()">${r}D</button>`).join('')}</div>
+        </div>
+        <div class="h-64"><canvas id="chWeight"></canvas></div>
+      </div>
+      <div class="card card-pad">
+        <div class="h-title">Daily Macro Split</div><div class="text-xs muted">${fmtDate(ui.date)} • grams consumed</div>
+        <div class="relative mx-auto mt-3 h-52 w-52"><canvas id="chMacro"></canvas>
+          <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><div class="text-2xl font-extrabold">${fmt(s.intake)}</div><div class="text-[10px] font-semibold uppercase muted">kcal</div></div></div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+          ${[['Protein', s.p, t.protein, '#8B5CF6'], ['Carbs', s.c, t.carbs, '#F59E0B'], ['Fats', s.f, t.fat, '#F43F5E'], ['Fiber', s.fib, t.fiber, '#10B981']].map(([n, v, tg, c]) => `
+            <div><div class="flex justify-between"><span class="font-semibold"><span class="mr-1 inline-block h-2 w-2 rounded-full" style="background:${c}"></span>${n}</span><span class="muted">${r1(v)}/${Math.round(tg)}g</span></div>${bar(v / tg, c, 'h-1.5 mt-1')}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div class="card card-pad xl:col-span-2">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div><div class="h-title">Calorie Intake vs Calorie Burn</div><div class="text-xs muted">Consumed vs total burnt (BMR + steps + cardio) • dashed line = target intake</div></div>
+          <div class="flex gap-1">${[7, 30].map((r) => `<button class="chip ${ui.chartRange === r ? 'active' : ''}" onclick="ui.chartRange=${r};renderDashboard()">${r}D</button>`).join('')}</div>
+        </div>
+        <div class="h-64"><canvas id="chCalories"></canvas></div>
+      </div>
+      <div class="card card-pad">
+        <div class="flex items-center justify-between"><div class="h-title">Top Improvements</div><button class="btn btn-ghost btn-sm" onclick="go('insights')">All <i class="fa-solid fa-arrow-right"></i></button></div>
+        <div class="mt-3 flex items-center gap-4">
+          ${ring(a.score / 100, g.color, 84, 9, `<div class="text-xl font-extrabold">${a.score}</div><div class="text-[9px] font-bold uppercase muted">score</div>`)}
+          <div><span class="pill ${g.cls}">${g.label}</span><div class="mt-1 text-xs muted">Daily Fitness Score blends deficit, protein, hydration, steps, cardio, weight trend &amp; recovery.</div></div>
+        </div>
+        <div class="mt-4 space-y-2">
+          ${a.audits.filter((x) => x.st !== 'green').sort((x, y) => ({ red: 0, amber: 1, gray: 2 })[x.st] - ({ red: 0, amber: 1, gray: 2 })[y.st]).slice(0, 4).map((x) => `
+            <div class="flex items-start gap-3 rounded-xl border-l-4 ${stBorder(x.st)} bg-amber-50/60 p-2.5 dark:bg-white/[.03]">
+              <i class="fa-solid ${x.icon} mt-0.5" style="color:${x.color}"></i>
+              <div class="min-w-0"><div class="text-sm font-bold">${esc(x.head)}</div><div class="text-xs muted">${esc(x.title)}</div></div>
+            </div>`).join('') || '<div class="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"><i class="fa-solid fa-trophy"></i> Every audit is green. Outstanding day!</div>'}
+        </div>
+      </div>
+    </div>
+  </div>`;
+  drawDashboardCharts();
+}
+
+function drawDashboardCharts() {
+  const days = dateRange(ui.date, ui.chartRange);
+  const labels = days.map((d) => fmtDate(d));
+  const p = state.profile, t = targets();
+  const cc = chartColors();
+  const weights = days.map((d) => getLog(d).bio.weight || null);
+  const traj = days.map((d) => {
+    const n = daysBetween(p.startDate, d);
+    if (n < 0) return null;
+    return r2(Math.max(p.targetWeight, p.startWeight - p.weeklyRate * n / 7));
+  });
+  const valid = weights.filter(Boolean).concat(traj.filter((x) => x !== null));
+  const minW = valid.length ? Math.min(...valid) : p.targetWeight;
+  const maxW = valid.length ? Math.max(...valid) : p.startWeight;
+  const showGoal = minW - p.targetWeight <= 3;
+  mkChart('chWeight', {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Actual weight (kg)', data: weights, borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.12)', fill: 'start', tension: 0.35, spanGaps: true, pointRadius: 4, pointBackgroundColor: '#8B5CF6', pointBorderColor: cc.bg, pointBorderWidth: 2, borderWidth: 2.5 },
+      { label: 'Target trajectory', data: traj, borderColor: '#F59E0B', borderDash: [6, 5], pointRadius: 0, tension: 0, borderWidth: 2, fill: false },
+      ...(showGoal ? [{ label: 'Goal weight', data: days.map(() => p.targetWeight), borderColor: 'rgba(16,185,129,0.6)', borderDash: [2, 4], pointRadius: 0, borderWidth: 1.5, fill: false }] : [])
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: cc.text } }, tooltip: { callbacks: { label: (c) => c.raw === null ? null : `${c.dataset.label}: ${c.raw} kg` } } },
+      scales: { ...baseScales(''), y: { ...baseScales('').y, suggestedMin: Math.floor(minW - 0.5), suggestedMax: Math.ceil(maxW + 0.5) } } }
+  });
+  const sums = days.map(daySummary);
+  mkChart('chCalories', {
+    type: 'bar',
+    data: { labels, datasets: [
+      { type: 'line', label: 'Target intake', data: days.map(() => Math.round(t.kcal)), borderColor: '#F59E0B', borderDash: [6, 5], borderWidth: 2, pointRadius: 0, order: 0 },
+      { label: 'Calories consumed', data: sums.map((s) => Math.round(s.intake)), backgroundColor: '#10B981', borderRadius: 6, maxBarThickness: 22, order: 1 },
+      { label: 'Calories burnt', data: sums.map((s) => Math.round(s.burnt)), backgroundColor: '#F43F5E', borderRadius: 6, maxBarThickness: 22, order: 2 }
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: cc.text } },
+        tooltip: { callbacks: { footer: (items) => { const s = sums[items[0].dataIndex]; return s.hasFood ? `Net: ${s.deficit >= 0 ? '−' : '+'}${fmt(Math.abs(s.deficit))} kcal` : 'No food logged'; } } } },
+      scales: baseScales('kcal') }
+  });
+  const s = daySummary(ui.date);
+  const hasMacros = s.p + s.c + s.f + s.fib > 0;
+  mkChart('chMacro', {
+    type: 'doughnut',
+    data: { labels: ['Protein', 'Carbs', 'Fats', 'Fiber'], datasets: [{ data: hasMacros ? [r1(s.p), r1(s.c), r1(s.f), r1(s.fib)] : [1, 1, 1, 1], backgroundColor: hasMacros ? ['#8B5CF6', '#F59E0B', '#F43F5E', '#10B981'] : ['rgba(161,161,170,.18)', 'rgba(161,161,170,.14)', 'rgba(161,161,170,.10)', 'rgba(161,161,170,.06)'], borderColor: cc.bg, borderWidth: 3, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { enabled: hasMacros, callbacks: { label: (c) => `${c.label}: ${c.raw} g` } } } }
+  });
+}
+
+/* ---------- Quick actions ---------- */
+function addSteps(n) {
+  const l = ensureLog(ui.date); l.steps = Math.max(0, l.steps + Math.round(n)); pruneLog(ui.date);
+  refresh(); toast(`${n >= 0 ? '+' : ''}${fmt(n)} steps logged`);
+}
+function addCustomSteps() { const v = Math.round(num($('stepsCustom').value)); if (!v) return toast('Enter a step count', 'warn'); addSteps(v); }
+function setStepsExact() {
+  const v = Math.round(num($('stepsCustom') ? $('stepsCustom').value : NaN, NaN));
+  if (!Number.isFinite(v) || v < 0) return toast('Type the exact total in the box, then press the pencil', 'info');
+  const l = ensureLog(ui.date); l.steps = v; pruneLog(ui.date); refresh(); toast(`Steps set to ${fmt(v)}`);
+}
+function addWater(ml) {
+  const l = ensureLog(ui.date); const before = l.water; l.water = Math.max(0, l.water + ml); pruneLog(ui.date);
+  refresh(); if (before !== l.water) toast(ml > 0 ? `+${ml} ml water 💧` : `${ml} ml removed`, ml > 0 ? 'success' : 'info');
+}
+function setWater(ml) { const l = ensureLog(ui.date); l.water = l.water === ml ? ml - 250 : ml; pruneLog(ui.date); refresh(); }
+function logWeight(date, w) {
+  if (!(w >= 25 && w <= 350)) { toast('Enter a realistic weight between 25 and 350 kg', 'warn'); return false; }
+  const l = ensureLog(date); l.bio.weight = r1(w);
+  const latest = latestWeightEntry();
+  if (latest && latest.date === date) state.profile.currentWeight = r1(w);
+  return true;
+}
+function quickWeight() { const w = num($('dashWeight').value, NaN); if (logWeight(ui.date, w)) { refresh(); toast(`Weight ${r1(w)} kg saved for ${fmtDate(ui.date)}`); } }
+
+
+/* =====================================================================
+ *  Module B: Daily Tracker (Food, Cardio, Steps, Water & Weight)
+ * ===================================================================== */
+function defaultMeal() {
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  return h < 7.5 ? 'early' : h < 11 ? 'breakfast' : h < 16 ? 'lunch' : h < 19 ? 'snack' : 'dinner';
+}
+const FOOD_CATS = ['All', 'Protein', 'Dals & Legumes', 'Grains', 'Breakfast', 'Dairy & Alternatives', 'Vegetables', 'Fruits', 'Nuts & Seeds', 'Snacks', 'Beverages', 'Fats & Oils', 'Jain', 'Low-GI', 'Custom'];
+
+function renderTracker() {
+  if (!ui.foodMeal) ui.foodMeal = defaultMeal();
+  const s = daySummary(ui.date), t = targets();
+  const b = getLog(ui.date).bio;
+  if (ui.bioEnergyDate !== ui.date) { ui.bioEnergy = b.energy; ui.bioEnergyDate = ui.date; }
+  $('view-tracker').innerHTML = `
+  <div class="fade-in space-y-5">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Daily <span class="text-grad">Tracker</span></h1>
+        <p class="text-sm muted">Food, cardio, steps, water &amp; biometrics for <b>${fmtLong(ui.date)}</b></p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn btn-soft" onclick="copyPreviousMeals()"><i class="fa-regular fa-copy"></i>Copy previous day's meals</button>
+        <button class="btn btn-primary" onclick="openCustomFood()"><i class="fa-solid fa-plus"></i>Custom Veg Food</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      ${[['Calories In', fmt(s.intake), `/ ${fmt(t.kcal)} kcal`, '#10B981', 'fa-utensils'], ['Protein', r1(s.p) + 'g', `/ ${Math.round(t.proteinMin)}g min`, '#8B5CF6', 'fa-seedling'], ['Carbs', r1(s.c) + 'g', `/ ${Math.round(t.carbs)}g`, '#F59E0B', 'fa-wheat-awn'], ['Fats', r1(s.f) + 'g', `/ ${Math.round(t.fat)}g`, '#F43F5E', 'fa-droplet'], ['Fiber', r1(s.fib) + 'g', `/ ${Math.round(t.fiber)}g`, '#10B981', 'fa-leaf'], ['Total Burnt', fmt(s.burnt), `${fmt(s.cardioKcal)} cardio`, '#F43F5E', 'fa-fire']].map(([l, v, sub, c, ic]) => `
+        <div class="card p-3"><div class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide muted"><i class="fa-solid ${ic}" style="color:${c}"></i>${l}</div><div class="mt-1 text-xl font-extrabold">${v}</div><div class="text-[11px] muted">${sub}</div></div>`).join('')}
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+      <div class="space-y-5 xl:col-span-2">
+        <!-- Food logger -->
+        <div class="card card-pad">
+          <div class="mb-3 flex items-center justify-between"><div><div class="h-title"><i class="fa-solid fa-seedling mr-1 text-emerald-500"></i>Pure Veg Calorie Logger</div><div class="text-xs muted">${allFoods().length} vegetarian foods • strictly no meat, fish, poultry or eggs</div></div></div>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
+            <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"></i><input id="foodSearch" class="input !pl-9" placeholder="Search roti, paneer, dal, poha…" value="${esc(ui.foodQuery)}" oninput="ui.foodQuery=this.value;renderFoodResults()"></div>
+            <select id="foodMeal" class="input sm:!w-44" onchange="ui.foodMeal=this.value">${MEALS.map((m) => `<option value="${m.id}" ${ui.foodMeal === m.id ? 'selected' : ''}>${m.name}</option>`).join('')}</select>
+            <div class="flex items-center gap-1"><span class="text-xs font-semibold muted">Qty</span><input id="foodQty" type="number" min="0.25" step="0.25" class="input !w-20" value="${ui.foodQty}" onchange="ui.foodQty=Math.max(0.25,num(this.value,1));this.value=ui.foodQty"></div>
+          </div>
+          <div class="scroll-thin mt-3 flex gap-1.5 overflow-x-auto pb-1">${FOOD_CATS.map((c) => `<button class="chip ${ui.foodCat === c ? 'active' : ''}" onclick="ui.foodCat='${c}';renderTracker()">${c}</button>`).join('')}</div>
+          <div id="foodResults" class="scroll-thin mt-3 max-h-80 divide-y divide-amber-100 overflow-y-auto rounded-xl border border-amber-100 dark:divide-white/5 dark:border-white/5"></div>
+        </div>
+
+        <!-- Meal log -->
+        <div class="card card-pad">
+          <div class="mb-3 flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-bowl-rice mr-1 text-amber-500"></i>Meal Log</div><span class="text-xs muted">${getLog(ui.date).foods.length} item(s) • ${fmt(s.intake)} kcal</span></div>
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            ${MEALS.map((m) => {
+              const items = getLog(ui.date).foods.filter((f) => f.meal === m.id);
+              const kc = sum(items, (f) => f.kcal * f.qty), pr = sum(items, (f) => f.p * f.qty);
+              return `<div class="rounded-xl border border-amber-100 p-3 dark:border-white/5">
+                <div class="flex items-center justify-between"><div class="flex items-center gap-2 text-sm font-bold"><i class="fa-solid ${m.icon} text-amber-500"></i>${m.name}</div><div class="text-xs muted"><b class="text-emerald-600 dark:text-emerald-400">${fmt(kc)}</b> kcal • ${r1(pr)}g P</div></div>
+                <div class="mt-2 space-y-1.5">${items.length ? items.map((f) => `
+                  <div class="flex items-center gap-2 rounded-lg bg-amber-50/70 px-2 py-1.5 text-sm dark:bg-white/[.03]">
+                    <div class="min-w-0 flex-1"><div class="truncate font-semibold">${esc(f.name)}</div><div class="truncate text-[11px] muted">${r2(f.qty)} × ${esc(f.serving)} • ${fmt(f.kcal * f.qty)} kcal • P${r1(f.p * f.qty)} C${r1(f.c * f.qty)} F${r1(f.f * f.qty)}</div></div>
+                    <button class="btn btn-ghost btn-sm !px-1.5" onclick="changeQty('${f.id}',-0.5)" aria-label="Decrease"><i class="fa-solid fa-minus"></i></button>
+                    <button class="btn btn-ghost btn-sm !px-1.5" onclick="changeQty('${f.id}',0.5)" aria-label="Increase"><i class="fa-solid fa-plus"></i></button>
+                    <button class="btn btn-ghost btn-sm !px-1.5 text-rose-500" onclick="removeFood('${f.id}')" aria-label="Remove"><i class="fa-solid fa-trash-can"></i></button>
+                  </div>`).join('') : `<button class="w-full rounded-lg border border-dashed border-amber-200 py-2 text-xs muted hover:bg-amber-50 dark:border-white/10 dark:hover:bg-white/5" onclick="ui.foodMeal='${m.id}';$('foodMeal').value='${m.id}';$('foodSearch').focus()">+ Add to ${m.name}</button>`}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-5">
+        <!-- Cardio -->
+        <div class="card card-pad">
+          <div class="h-title"><i class="fa-solid fa-heart-pulse mr-1 text-rose-500"></i>Cardio &amp; Workout Logger</div>
+          <div class="text-xs muted">MET-based burn using your weight (${r1(s.weight)} kg)</div>
+          <div class="mt-3 space-y-3">
+            <div><label class="label">Activity</label><select id="cdType" class="input" onchange="ui.cardioType=this.value;updateCardioPreview()">${Object.entries(ACTIVITIES).map(([k, a]) => `<option value="${k}" ${ui.cardioType === k ? 'selected' : ''}>${a.name}</option>`).join('')}</select></div>
+            <div class="grid grid-cols-2 gap-2">
+              <div><label class="label">Duration (min)</label><input id="cdDur" type="number" min="1" class="input" value="${ui.cardioDur || 30}" oninput="ui.cardioDur=this.value;updateCardioPreview()"></div>
+              <div><label class="label">Calories</label><div id="cdAuto" class="input !bg-rose-50 font-bold text-rose-600 dark:!bg-rose-400/10 dark:text-rose-300">—</div></div>
+            </div>
+            <div><label class="label">Intensity</label><div class="grid grid-cols-3 gap-1.5">${INTENSITIES.map((n, i) => `<button class="chip !rounded-lg !py-1.5 ${ui.cardioIntensity === i ? 'active' : ''}" onclick="ui.cardioIntensity=${i};document.querySelectorAll('[data-int]').forEach(b=>b.classList.toggle('active',+b.dataset.int===${i}));updateCardioPreview()" data-int="${i}">${n}</button>`).join('')}</div></div>
+            <label class="flex items-center gap-2 text-sm font-semibold"><input id="cdManual" type="checkbox" class="h-4 w-4 accent-amber-500" onchange="$('cdKcal').classList.toggle('hidden',!this.checked)"> Manual calorie override</label>
+            <input id="cdKcal" type="number" min="0" class="input hidden" placeholder="Calories burnt (from your watch)">
+            <input id="cdNotes" class="input" placeholder="Notes (e.g. 5 km in 32 min, incline 6)">
+            <button class="btn btn-primary w-full" onclick="addCardio()"><i class="fa-solid fa-plus"></i>Log Session</button>
+          </div>
+          <div class="mt-4 space-y-2">${getLog(ui.date).cardio.map((c) => `
+            <div class="flex items-center gap-3 rounded-xl bg-rose-50/70 p-2.5 dark:bg-rose-400/[.06]">
+              <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-rose-500 dark:bg-white/5"><i class="fa-solid ${ACTIVITIES[c.type].icon}"></i></span>
+              <div class="min-w-0 flex-1"><div class="truncate text-sm font-bold">${ACTIVITIES[c.type].name}</div><div class="truncate text-[11px] muted">${c.dur} min • ${INTENSITIES[c.intensity]} • <b class="text-rose-500">${fmt(c.kcal)} kcal</b>${c.manual ? ' (manual)' : ''}${c.notes ? ' • ' + esc(c.notes) : ''}</div></div>
+              <button class="btn btn-ghost btn-sm !px-1.5 text-rose-500" onclick="removeCardio('${c.id}')" aria-label="Remove session"><i class="fa-solid fa-trash-can"></i></button>
+            </div>`).join('') || '<div class="rounded-xl border border-dashed border-amber-200 p-3 text-center text-xs muted dark:border-white/10">No sessions logged for this day</div>'}
+          </div>
+        </div>
+
+        <!-- Biometrics -->
+        <div class="card card-pad">
+          <div class="h-title"><i class="fa-solid fa-weight-scale mr-1 text-violet-500"></i>Daily Biometric Check-in</div>
+          <div class="text-xs muted">Best logged in the morning, after waking</div>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <div><label class="label">Weight (kg)</label><input id="bioWeight" type="number" step="0.1" class="input" value="${b.weight ?? ''}" placeholder="${r1(weightAt(ui.date))}"></div>
+            <div><label class="label">Waist (cm)</label><input id="bioWaist" type="number" step="0.5" class="input" value="${b.waist ?? ''}" placeholder="e.g. 92"></div>
+            <div class="col-span-2"><label class="label">Sleep (hours)</label><input id="bioSleep" type="number" step="0.25" min="0" max="16" class="input" value="${b.sleep ?? ''}" placeholder="e.g. 7.5"></div>
+          </div>
+          <label class="label mt-3">Energy level</label>
+          <div class="grid grid-cols-5 gap-1.5">${[['😫', 1], ['😕', 2], ['🙂', 3], ['😃', 4], ['🔥', 5]].map(([e, v]) => `<button data-energy="${v}" class="rounded-xl border py-2 text-lg transition ${ui.bioEnergy === v ? 'border-amber-400 bg-amber-100 dark:bg-amber-400/15' : 'border-amber-100 dark:border-white/10'}" onclick="ui.bioEnergy=(ui.bioEnergy===${v}?undefined:${v});document.querySelectorAll('[data-energy]').forEach(x=>{const on=+x.dataset.energy===ui.bioEnergy;x.classList.toggle('border-amber-400',on);x.classList.toggle('bg-amber-100',on)})" title="Energy ${v}/5">${e}<div class="text-[10px] font-bold muted">${v}</div></button>`).join('')}</div>
+          <button class="btn mt-3 w-full bg-violet-500 text-white shadow-md shadow-violet-500/25 hover:bg-violet-600" onclick="saveBio()"><i class="fa-solid fa-floppy-disk"></i>Save Check-in</button>
+        </div>
+
+        <!-- Activity snapshot -->
+        <div class="card card-pad">
+          <div class="h-title"><i class="fa-solid fa-shoe-prints mr-1 text-amber-500"></i>Steps &amp; Water (exact)</div>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <div><label class="label">Steps</label><input id="trSteps" type="number" min="0" class="input" value="${s.steps || ''}" placeholder="0"></div>
+            <div><label class="label">Water (ml)</label><input id="trWater" type="number" min="0" step="50" class="input" value="${s.water || ''}" placeholder="0"></div>
+          </div>
+          <div class="mt-2 text-[11px] muted">${r2(s.distance)} km • ${fmt(s.stepKcal)} kcal from steps • stride ${r1(strideCm())} cm</div>
+          <button class="btn btn-soft mt-3 w-full" onclick="saveExactActivity()"><i class="fa-solid fa-check"></i>Update Totals</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  renderFoodResults();
+  updateCardioPreview();
+}
+
+function filteredFoods() {
+  const q = ui.foodQuery.trim().toLowerCase();
+  return allFoods().filter((f) => {
+    if (ui.foodCat === 'Jain' && !f.tags.includes('j')) return false;
+    if (ui.foodCat === 'Low-GI' && !f.tags.includes('lg')) return false;
+    if (ui.foodCat === 'Custom' && f.builtin) return false;
+    if (!['All', 'Jain', 'Low-GI', 'Custom'].includes(ui.foodCat) && f.cat !== ui.foodCat) return false;
+    if (!q) return true;
+    return q.split(/\s+/).every((w) => (f.name + ' ' + f.cat + ' ' + f.serving).toLowerCase().includes(w));
+  });
+}
+
+function renderFoodResults() {
+  const el = $('foodResults'); if (!el) return;
+  const list = filteredFoods();
+  el.innerHTML = list.length ? list.map((f) => `
+    <div class="flex items-center gap-3 px-3 py-2 hover:bg-amber-50/70 dark:hover:bg-white/[.03]">
+      <div class="min-w-0 flex-1">
+        <div class="truncate text-sm font-semibold">${esc(f.name)} ${f.tags.includes('j') ? '<span class="pill pill-violet !px-1.5 !py-0 !text-[9px]">Jain</span>' : ''}${f.tags.includes('lg') ? '<span class="pill pill-green !px-1.5 !py-0 !text-[9px]">Low-GI</span>' : ''}${!f.builtin ? '<span class="pill pill-amber !px-1.5 !py-0 !text-[9px]">Custom</span>' : ''}</div>
+        <div class="truncate text-[11px] muted">${esc(f.serving)} • <b class="text-emerald-600 dark:text-emerald-400">${fmt(f.kcal)} kcal</b> • P ${r1(f.p)}g • C ${r1(f.c)}g • F ${r1(f.f)}g • Fib ${r1(f.fib)}g</div>
+      </div>
+      ${!f.builtin ? `<button class="btn btn-ghost btn-sm !px-1.5" onclick="openCustomFood('${f.id}')" aria-label="Edit custom food"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm !px-1.5 text-rose-500" onclick="deleteCustomFood('${f.id}')" aria-label="Delete custom food"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+      <button class="btn btn-primary btn-sm !px-2.5" onclick="addFood('${f.id}')" aria-label="Add ${esc(f.name)}"><i class="fa-solid fa-plus"></i></button>
+    </div>`).join('') : `<div class="p-6 text-center text-sm muted">No vegetarian match for "${esc(ui.foodQuery)}". <button class="font-semibold text-amber-600 underline" onclick="openCustomFood()">Create a custom food</button></div>`;
+}
+
+function addFood(fid, meal = ui.foodMeal || defaultMeal(), qty = ui.foodQty, date = ui.date, silent = false) {
+  const f = findFood(fid); if (!f) return;
+  const l = ensureLog(date);
+  const existing = l.foods.find((x) => x.fid === fid && x.meal === meal);
+  if (existing) existing.qty = r2(existing.qty + qty);
+  else l.foods.push({ id: uid(), fid: f.id, name: f.name, serving: f.serving, meal, qty: r2(qty), kcal: f.kcal, p: f.p, c: f.c, f: f.f, fib: f.fib });
+  if (!silent) { refresh(); toast(`${f.name} ×${r2(qty)} added to ${mealName(meal)}`); }
+}
+function changeQty(id, d) {
+  const l = ensureLog(ui.date); const f = l.foods.find((x) => x.id === id); if (!f) return;
+  f.qty = r2(f.qty + d);
+  if (f.qty <= 0) l.foods = l.foods.filter((x) => x.id !== id);
+  pruneLog(ui.date); refresh();
+}
+function removeFood(id) { const l = ensureLog(ui.date); const f = l.foods.find((x) => x.id === id); l.foods = l.foods.filter((x) => x.id !== id); pruneLog(ui.date); refresh(); if (f) toast(`${f.name} removed`, 'info'); }
+
+async function copyPreviousMeals() {
+  let d = addDays(ui.date, -1), tries = 0;
+  while (!getLog(d).foods.length && tries < 30) { d = addDays(d, -1); tries++; }
+  const src = getLog(d).foods;
+  if (!src.length) return toast('No meals found in the previous 30 days', 'warn');
+  const ok = await confirmDialog({ title: 'Copy meals', message: `Copy ${src.length} food item(s) from <b>${fmtLong(d)}</b> into <b>${fmtLong(ui.date)}</b>? They'll be appended to any existing entries.`, confirmText: 'Copy meals' });
+  if (!ok) return;
+  const l = ensureLog(ui.date);
+  src.forEach((f) => l.foods.push({ ...f, id: uid() }));
+  refresh(); toast(`${src.length} items copied from ${fmtDate(d)}`);
+}
+
+function openCustomFood(id) {
+  const f = id ? state.customFoods.find((x) => x.id === id) : null;
+  const v = (k, d = '') => f ? esc(f[k]) : d;
+  openModal(`<i class="fa-solid fa-seedling text-emerald-500"></i> ${f ? 'Edit' : 'Add'} Custom Pure Veg Food`, `
+    <div class="mb-3 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300"><i class="fa-solid fa-leaf"></i> MiyeeFit Pro is 100% vegetarian. Items containing meat, fish, poultry or eggs are rejected.</div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2"><label class="label">Food name</label><input id="cfName" class="input" value="${v('name')}" placeholder="e.g. Homemade Paneer Paratha"></div>
+      <div class="col-span-2"><label class="label">Serving description</label><input id="cfServing" class="input" value="${v('serving', '1 serving')}" placeholder="e.g. 1 piece (80g)"></div>
+      <div><label class="label">Calories (kcal)</label><input id="cfKcal" type="number" min="0" class="input" value="${v('kcal')}"></div>
+      <div><label class="label">Protein (g)</label><input id="cfP" type="number" min="0" step="0.1" class="input" value="${v('p')}"></div>
+      <div><label class="label">Carbs (g)</label><input id="cfC" type="number" min="0" step="0.1" class="input" value="${v('c')}"></div>
+      <div><label class="label">Fat (g)</label><input id="cfF" type="number" min="0" step="0.1" class="input" value="${v('f')}"></div>
+      <div><label class="label">Fiber (g)</label><input id="cfFib" type="number" min="0" step="0.1" class="input" value="${v('fib')}"></div>
+      <div class="flex items-end"><div id="cfCheck" class="text-[11px] muted">Macros will be cross-checked against calories.</div></div>
+    </div>`,
+    `<button class="btn btn-soft" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveCustomFood('${f ? f.id : ''}')"><i class="fa-solid fa-floppy-disk"></i>${f ? 'Update' : 'Save'} Food</button>`);
+}
+function saveCustomFood(id) {
+  const name = $('cfName').value.trim();
+  if (!name) return toast('Please enter a food name', 'warn');
+  if (isNonVeg(name) || isNonVeg($('cfServing').value)) return toast('Only pure vegetarian foods are allowed — no meat, fish, poultry or eggs.', 'error');
+  const item = { name: name.slice(0, 80), serving: ($('cfServing').value.trim() || '1 serving').slice(0, 60), kcal: Math.max(0, num($('cfKcal').value)), p: Math.max(0, num($('cfP').value)), c: Math.max(0, num($('cfC').value)), f: Math.max(0, num($('cfF').value)), fib: Math.max(0, num($('cfFib').value)), cat: 'Custom', tags: [], builtin: false };
+  if (!item.kcal) return toast('Calories must be greater than 0', 'warn');
+  const est = item.p * 4 + item.c * 4 + item.f * 9;
+  if (est > item.kcal * 1.35 + 20) toast(`Heads-up: macros imply ~${fmt(est)} kcal, higher than ${fmt(item.kcal)} entered.`, 'warn');
+  if (id) { const f = state.customFoods.find((x) => x.id === id); Object.assign(f, item); }
+  else state.customFoods.push({ id: 'c_' + uid(), ...item });
+  closeModal(); ui.foodCat = 'Custom'; ui.foodQuery = ''; refresh(); toast(`${item.name} saved to your custom foods`);
+}
+async function deleteCustomFood(id) {
+  const f = state.customFoods.find((x) => x.id === id); if (!f) return;
+  if (!(await confirmDialog({ title: 'Delete custom food', message: `Delete <b>${esc(f.name)}</b> from your custom foods? Existing log entries are kept.`, confirmText: 'Delete', danger: true }))) return;
+  state.customFoods = state.customFoods.filter((x) => x.id !== id); refresh(); toast('Custom food deleted', 'info');
+}
+
+function updateCardioPreview() {
+  const el = $('cdAuto'); if (!el) return;
+  const dur = num($('cdDur').value);
+  const kcal = metKcal(ui.cardioType, ui.cardioIntensity, dur, weightAt(ui.date));
+  el.textContent = dur > 0 ? `${fmt(kcal)} kcal` : '—';
+  el.title = `MET ${ACTIVITIES[ui.cardioType].met[ui.cardioIntensity]} × 3.5 × ${r1(weightAt(ui.date))} kg ÷ 200 × ${dur} min`;
+}
+function addCardio() {
+  const dur = num($('cdDur').value);
+  if (!(dur > 0 && dur <= 600)) return toast('Enter a duration between 1 and 600 minutes', 'warn');
+  const manual = $('cdManual').checked;
+  const auto = metKcal(ui.cardioType, ui.cardioIntensity, dur, weightAt(ui.date));
+  const kcal = manual ? num($('cdKcal').value, NaN) : auto;
+  if (manual && !(kcal >= 0)) return toast('Enter the calories for manual override', 'warn');
+  ensureLog(ui.date).cardio.push({ id: uid(), type: ui.cardioType, dur, intensity: ui.cardioIntensity, kcal: Math.round(kcal), manual, notes: $('cdNotes').value.trim().slice(0, 200) });
+  ui.cardioDur = dur;
+  refresh(); toast(`${ACTIVITIES[ui.cardioType].name}: ${dur} min • ${fmt(kcal)} kcal burnt 🔥`);
+}
+function removeCardio(id) { const l = ensureLog(ui.date); l.cardio = l.cardio.filter((x) => x.id !== id); pruneLog(ui.date); refresh(); toast('Session removed', 'info'); }
+
+function saveBio() {
+  const l = ensureLog(ui.date);
+  const w = $('bioWeight').value.trim(), wa = $('bioWaist').value.trim(), sl = $('bioSleep').value.trim();
+  if (w) { if (!logWeight(ui.date, num(w, NaN))) return; } else delete l.bio.weight;
+  if (wa) { const v = num(wa, NaN); if (!(v >= 40 && v <= 250)) return toast('Waist should be between 40 and 250 cm', 'warn'); l.bio.waist = r1(v); } else delete l.bio.waist;
+  if (sl) { const v = num(sl, NaN); if (!(v >= 0 && v <= 16)) return toast('Sleep should be between 0 and 16 hours', 'warn'); l.bio.sleep = r2(v); } else delete l.bio.sleep;
+  if (ui.bioEnergy) l.bio.energy = ui.bioEnergy; else delete l.bio.energy;
+  if (!w) { const latest = latestWeightEntry(); if (latest) state.profile.currentWeight = latest.weight; }
+  pruneLog(ui.date); refresh(); toast('Biometric check-in saved');
+}
+function saveExactActivity() {
+  const st = Math.round(num($('trSteps').value)), wa = Math.round(num($('trWater').value));
+  if (st < 0 || st > 100000) return toast('Steps should be between 0 and 100,000', 'warn');
+  if (wa < 0 || wa > 10000) return toast('Water should be between 0 and 10,000 ml', 'warn');
+  const l = ensureLog(ui.date); l.steps = st; l.water = wa; pruneLog(ui.date); refresh(); toast('Steps & water totals updated');
+}
+
+/* =====================================================================
+ *  Module C: Scope of Improvement & Smart Diagnostic Engine
+ * ===================================================================== */
+function renderInsights() {
+  const a = analyze(ui.date);
+  const g = scoreGrade(a.score);
+  const days = dateRange(ui.date, 7);
+  const rows = days.map((d) => ({ d, s: daySummary(d), sc: analyze(d).score }));
+  const logged = rows.filter((r) => r.s.hasAny);
+  const avg = (fn) => logged.length ? sum(logged, fn) / logged.length : 0;
+  const comp = [['Calorie deficit', a.pts.calorie, 25, '#10B981'], ['Protein', a.pts.protein, 20, '#8B5CF6'], ['Hydration', a.pts.water, 15, '#06B6D4'], ['Steps / NEAT', a.pts.steps, 15, '#F59E0B'], ['Cardio', a.pts.cardio, 10, '#F43F5E'], ['Weight trend', a.pts.weight, 10, '#7C3AED'], ['Recovery', a.pts.recovery, 5, '#6366F1']];
+  const actions = a.audits.filter((x) => x.st === 'red' || x.st === 'amber').sort((x, y) => (x.st === 'red' ? 0 : 1) - (y.st === 'red' ? 0 : 1));
+
+  $('view-insights').innerHTML = `
+  <div class="fade-in space-y-5">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Scope of <span class="text-grad">Improvement</span></h1>
+      <p class="text-sm muted">Smart diagnostic audit of ${fmtLong(ui.date)} with 7-day rolling context</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div class="card card-pad flex flex-col items-center justify-center text-center">
+        ${ring(a.score / 100, g.color, 170, 14, `<div class="text-5xl font-extrabold" style="color:${g.color}">${a.score}</div><div class="text-xs font-bold uppercase tracking-widest muted">of 100</div>`)}
+        <div class="mt-3"><span class="pill ${g.cls} !text-xs">${g.label}</span></div>
+        <div class="mt-2 text-sm muted">Daily Fitness Score</div>
+      </div>
+      <div class="card card-pad">
+        <div class="h-title">Score Breakdown</div>
+        <div class="mt-3 space-y-2.5">${comp.map(([n, v, max, c]) => `<div><div class="flex justify-between text-xs"><span class="font-semibold">${n}</span><span class="muted">${r1(v)} / ${max}</span></div>${bar(v / max, c, 'h-2 mt-1')}</div>`).join('')}</div>
+      </div>
+      <div class="card card-pad">
+        <div class="h-title"><i class="fa-solid fa-list-ol mr-1 text-amber-500"></i>Priority Action Plan</div>
+        <ol class="mt-3 space-y-2">${actions.length ? actions.slice(0, 5).map((x, i) => `<li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${x.st === 'red' ? 'bg-rose-500' : 'bg-amber-500'}">${i + 1}</span><div><div class="text-sm font-bold">${esc(x.head)}</div><div class="text-[11px] muted">${esc(x.title)}</div></div></li>`).join('') : '<li class="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"><i class="fa-solid fa-trophy"></i> No critical gaps. Keep the momentum!</li>'}</ol>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      ${a.audits.map((x) => `
+      <div class="card card-pad border-l-4 ${stBorder(x.st)}">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3"><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-white/5"><i class="fa-solid ${x.icon} text-lg" style="color:${x.color}"></i></span>
+          <div><div class="text-xs font-bold uppercase tracking-wide muted">${esc(x.title)}</div><div class="font-extrabold text-zinc-900 dark:text-white">${esc(x.head)}</div></div></div>
+          ${stPill(x.st)}
+        </div>
+        <div class="mt-3 flex items-center justify-between text-xs"><span class="muted">Metric</span><span class="font-bold">${esc(x.metric)}</span></div>
+        ${bar(x.pct, x.color, 'h-2 mt-1')}
+        <p class="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">${esc(x.det)}</p>
+        ${x.key === 'protein' && x.fixes && x.fixes.length ? `<div class="mt-3 flex flex-wrap gap-1.5">${x.fixes.map((o) => `<button class="btn btn-soft btn-sm" onclick="addFood('${o.f.id}','${ui.date === todayStr() && new Date().getHours() >= 17 ? 'dinner' : 'snack'}',${o.qty})"><i class="fa-solid fa-plus"></i>${o.qty !== 1 ? o.qty + '× ' : ''}${esc(o.f.name)} (+${r1(o.f.p * o.qty)}g)</button>`).join('')}</div>` : ''}
+        ${x.key === 'water' && x.st !== 'green' ? `<div class="mt-3 flex gap-1.5"><button class="btn btn-sm bg-cyan-100 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300" onclick="addWater(250)">+250 ml</button><button class="btn btn-sm bg-cyan-100 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300" onclick="addWater(500)">+500 ml</button></div>` : ''}
+        ${x.key === 'steps' && x.st !== 'green' ? `<div class="mt-3 flex gap-1.5"><button class="btn btn-soft btn-sm" onclick="addSteps(${Math.max(0, targets().steps - daySummary(ui.date).steps)})"><i class="fa-solid fa-person-walking"></i>I walked it (+${fmt(Math.max(0, targets().steps - daySummary(ui.date).steps))} steps)</button></div>` : ''}
+        ${x.key === 'cardio' && x.st !== 'green' ? `<div class="mt-3"><button class="btn btn-soft btn-sm" onclick="go('tracker')"><i class="fa-solid fa-heart-pulse"></i>Log a session</button></div>` : ''}
+        ${(x.key === 'weight' || x.key === 'recovery') && x.st === 'gray' ? `<div class="mt-3"><button class="btn btn-soft btn-sm" onclick="go('tracker')"><i class="fa-solid fa-clipboard-check"></i>Open check-in</button></div>` : ''}
+      </div>`).join('')}
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div class="card card-pad xl:col-span-1">
+        <div class="h-title">Fitness Score Trend</div><div class="text-xs muted">Last 14 days</div>
+        <div class="mt-3 h-56"><canvas id="chScore"></canvas></div>
+      </div>
+      <div class="card card-pad xl:col-span-2">
+        <div class="flex items-center justify-between"><div><div class="h-title">7-Day Rolling Audit</div><div class="text-xs muted">${logged.length} of 7 days logged • averages use logged days</div></div></div>
+        <div class="scroll-thin mt-3 overflow-x-auto">
+          <table class="tbl w-full">
+            <thead><tr><th>Date</th><th>Score</th><th>In</th><th>Burnt</th><th>Deficit</th><th>Protein</th><th>Water</th><th>Steps</th><th>Cardio</th><th>Weight</th></tr></thead>
+            <tbody>${rows.slice().reverse().map((r) => `<tr class="${r.d === ui.date ? 'bg-amber-50 dark:bg-amber-400/5' : ''} cursor-pointer hover:bg-amber-50/60 dark:hover:bg-white/[.03]" onclick="setDate('${r.d}')">
+              <td class="font-semibold">${fmtDate(r.d, { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+              <td><span class="font-bold" style="color:${scoreGrade(r.sc).color}">${r.s.hasAny ? r.sc : '—'}</span></td>
+              <td>${r.s.hasFood ? fmt(r.s.intake) : '—'}</td><td>${fmt(r.s.burnt)}</td>
+              <td class="${r.s.hasFood ? (r.s.deficit >= 300 && r.s.deficit <= 600 ? 'text-emerald-600 dark:text-emerald-400' : r.s.deficit < 0 ? 'text-rose-500' : 'text-amber-600') : ''} font-semibold">${r.s.hasFood ? (r.s.deficit >= 0 ? '−' : '+') + fmt(Math.abs(r.s.deficit)) : '—'}</td>
+              <td>${r.s.hasFood ? r1(r.s.p) + 'g' : '—'}</td><td>${r.s.water ? r2(r.s.water / 1000) + 'L' : '—'}</td><td>${r.s.steps ? fmt(r.s.steps) : '—'}</td><td>${r.s.cardioMin ? r.s.cardioMin + 'm' : '—'}</td><td>${getLog(r.d).bio.weight ?? '—'}</td></tr>`).join('')}
+              <tr class="font-bold"><td>Average</td><td>${logged.length ? Math.round(avg((r) => r.sc)) : '—'}</td><td>${fmt(avg((r) => r.s.intake))}</td><td>${fmt(avg((r) => r.s.burnt))}</td><td>${fmt(avg((r) => r.s.deficit))}</td><td>${r1(avg((r) => r.s.p))}g</td><td>${r2(avg((r) => r.s.water) / 1000)}L</td><td>${fmt(avg((r) => r.s.steps))}</td><td>${Math.round(sum(rows, (r) => r.s.cardioMin))}m total</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  const sd = dateRange(ui.date, 14);
+  const cc = chartColors();
+  mkChart('chScore', {
+    type: 'line',
+    data: { labels: sd.map((d) => fmtDate(d)), datasets: [{ label: 'Fitness Score', data: sd.map((d) => daySummary(d).hasAny ? analyze(d).score : null), borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,.15)', fill: true, tension: .35, spanGaps: true, pointRadius: 3.5, pointBackgroundColor: '#EA580C', borderWidth: 2.5 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { ...baseScales(''), y: { ...baseScales('').y, min: 0, max: 100 } } }
+  });
+}
+
+/* =====================================================================
+ *  Module D: Pure Vegetarian Diet Planner & Recommendation Engine
+ * ===================================================================== */
+function renderPlanner() {
+  const ps = state.settings.planner;
+  const t = targets();
+  const target = planTargetKcal();
+  const plan = buildPlan(ps.template, target, ps.swaps[ps.template] || {});
+  const cheat = FOOD_DB.filter((f) => f.kcal >= 30).map((f) => ({ f, pp: f.p / f.kcal * 100, fp: f.fib / f.kcal * 100 }))
+    .sort((a, b) => ui.cheatMode === 'protein' ? b.pp - a.pp : b.fp - a.fp).slice(0, 16);
+  const maxV = Math.max(...cheat.map((x) => ui.cheatMode === 'protein' ? x.pp : x.fp));
+  $('view-planner').innerHTML = `
+  <div class="fade-in space-y-5">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Pure Veg <span class="text-grad">Diet Planner</span></h1>
+        <p class="text-sm muted">Auto-generated meal plans scaled to your calorie target • 100% vegetarian</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <select class="input !w-auto" onchange="state.settings.planner.calories=this.value;save({skipSync:true});renderPlanner()">
+          <option value="auto" ${ps.calories === 'auto' ? 'selected' : ''}>My target (${fmt(t.kcal)} kcal)</option>
+          ${[1200, 1500, 1800, 2100, 2400].map((c) => `<option value="${c}" ${String(ps.calories) === String(c) ? 'selected' : ''}>${fmt(c)} kcal</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" onclick="applyPlan()"><i class="fa-solid fa-calendar-check"></i>Apply Meal Plan to ${ui.date === todayStr() ? "Today's" : fmtDate(ui.date) + "'s"} Log</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      ${PLAN_TEMPLATES.map((tp) => `<button onclick="state.settings.planner.template='${tp.id}';save({skipSync:true});renderPlanner()" class="card card-pad text-left transition hover:-translate-y-0.5 ${ps.template === tp.id ? '!border-amber-400 ring-4 ring-amber-400/20' : ''}">
+        <div class="flex items-center gap-3"><span class="${ps.template === tp.id ? 'grad-amber text-white' : 'bg-amber-100 text-amber-600 dark:bg-amber-400/10'} flex h-10 w-10 items-center justify-center rounded-xl"><i class="fa-solid ${tp.icon}"></i></span>
+        <div><div class="text-sm font-extrabold leading-tight">${tp.name}</div><div class="text-[11px] muted">${tp.sub}</div></div></div>
+        <p class="mt-2 text-xs muted">${tp.desc}</p></button>`).join('')}
+    </div>
+
+    <div class="card card-pad">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        ${[['Calories', plan.kcal, target, 'kcal', '#10B981'], ['Protein', plan.p, t.proteinMin, 'g', '#8B5CF6'], ['Carbs', plan.c, t.carbs, 'g', '#F59E0B'], ['Fats', plan.f, t.fat, 'g', '#F43F5E'], ['Fiber', plan.fib, t.fiber, 'g', '#059669']].map(([n, v, tg, u, c]) => `
+          <div><div class="text-[11px] font-bold uppercase tracking-wide muted">${n}</div><div class="text-xl font-extrabold">${u === 'kcal' ? fmt(v) : r1(v)}<span class="text-xs font-semibold muted"> / ${fmt(tg)} ${u}</span></div>${bar(v / tg, c, 'h-1.5 mt-1')}</div>`).join('')}
+      </div>
+      <div class="mt-3 text-[11px] muted"><i class="fa-solid fa-circle-info"></i> Portions scaled ×${r2(plan.factor)} from the template and rounded to half servings. Protein target uses 1.2 g/kg of your ${state.profile.targetWeight} kg goal weight as the minimum.</div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      ${plan.meals.map((m) => `
+      <div class="card card-pad flex flex-col">
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2 font-bold"><i class="fa-solid ${m.meal.icon} text-amber-500"></i>${m.meal.name}</div><span class="text-xs muted">Option ${m.idx + 1}/${m.count}</span></div>
+        <div class="mt-3 flex-1 space-y-1.5">${m.items.map((i) => `<div class="flex items-center justify-between gap-2 rounded-lg bg-amber-50/70 px-2.5 py-1.5 text-sm dark:bg-white/[.03]"><div class="min-w-0"><div class="truncate font-semibold">${esc(i.food.name)}</div><div class="truncate text-[11px] muted">${i.qty} × ${esc(i.food.serving)}</div></div><div class="shrink-0 text-right text-[11px]"><b>${fmt(i.food.kcal * i.qty)}</b> kcal<div class="muted">${r1(i.food.p * i.qty)}g P</div></div></div>`).join('')}</div>
+        <div class="mt-3 flex items-center justify-between text-xs"><span class="muted">Meal total</span><span><b class="text-emerald-600 dark:text-emerald-400">${fmt(m.kcal)} kcal</b> • ${r1(m.p)}g protein</span></div>
+        <div class="mt-3 grid grid-cols-2 gap-1.5">
+          <button class="btn btn-soft btn-sm" ${m.count < 2 ? 'disabled' : ''} onclick="swapMeal('${m.meal.id}')"><i class="fa-solid fa-shuffle"></i>Swap</button>
+          <button class="btn btn-outline btn-sm" onclick="applyMeal('${m.meal.id}')"><i class="fa-solid fa-plus"></i>Add to log</button>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <div class="card card-pad">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div><div class="h-title"><i class="fa-solid fa-ranking-star mr-1 text-amber-500"></i>High-Protein Pure Veg Cheat Sheet</div><div class="text-xs muted">Top vegetarian sources ranked by ${ui.cheatMode === 'protein' ? 'protein' : 'fiber'} grams per 100 kcal</div></div>
+        <div class="flex gap-1"><button class="chip ${ui.cheatMode === 'protein' ? 'active' : ''}" onclick="ui.cheatMode='protein';renderPlanner()">Protein / 100 kcal</button><button class="chip ${ui.cheatMode === 'fiber' ? 'active' : ''}" onclick="ui.cheatMode='fiber';renderPlanner()">Fiber / 100 kcal</button></div>
+      </div>
+      <div class="mt-4 grid grid-cols-1 gap-x-8 gap-y-2.5 md:grid-cols-2">
+        ${cheat.map((x, i) => { const v = ui.cheatMode === 'protein' ? x.pp : x.fp; const c = ui.cheatMode === 'protein' ? '#8B5CF6' : '#10B981'; return `
+        <div class="flex items-center gap-3">
+          <span class="w-5 text-right text-xs font-bold ${i < 3 ? 'text-amber-500' : 'muted'}">${i + 1}</span>
+          <div class="min-w-0 flex-1"><div class="flex justify-between text-xs"><span class="truncate font-semibold">${esc(x.f.name)}</span><span class="shrink-0 font-bold" style="color:${c}">${r1(v)} g</span></div>${bar(v / maxV, c, 'h-1.5 mt-1')}<div class="mt-0.5 text-[10px] muted">${esc(x.f.serving)} = ${fmt(x.f.kcal)} kcal • ${r1(x.f.p)}g P • ${r1(x.f.fib)}g fiber</div></div>
+          <button class="btn btn-ghost btn-sm !px-2" title="Add 1 serving to log" onclick="addFood('${x.f.id}',ui.foodMeal||defaultMeal(),1)"><i class="fa-solid fa-plus"></i></button>
+        </div>`; }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+function swapMeal(mealId) {
+  const ps = state.settings.planner;
+  ps.swaps[ps.template] = ps.swaps[ps.template] || {};
+  ps.swaps[ps.template][mealId] = (ps.swaps[ps.template][mealId] || 0) + 1;
+  save({ skipSync: true }); renderPlanner();
+}
+function currentPlan() { const ps = state.settings.planner; return buildPlan(ps.template, planTargetKcal(), ps.swaps[ps.template] || {}); }
+function applyMeal(mealId) {
+  const m = currentPlan().meals.find((x) => x.meal.id === mealId); if (!m) return;
+  m.items.forEach((i) => addFood(i.food.id, mealId, i.qty, ui.date, true));
+  refresh(); toast(`${m.meal.name} (${fmt(m.kcal)} kcal) added to ${fmtDate(ui.date)}`);
+}
+async function applyPlan() {
+  const plan = currentPlan();
+  const existing = getLog(ui.date).foods.length;
+  let replace = false;
+  if (existing) {
+    replace = await new Promise((resolve) => {
+      openModal('Apply meal plan', `<p class="text-sm muted">${fmtLong(ui.date)} already has <b>${existing}</b> food item(s). Do you want to replace them with the <b>${esc(plan.tpl.name)}</b> plan (${fmt(plan.kcal)} kcal) or append the plan?</p>`,
+        `<button class="btn btn-soft" onclick="closeModal()">Cancel</button><button class="btn btn-outline" id="apAppend">Append</button><button class="btn btn-primary" id="apReplace">Replace</button>`);
+      window._modalResolve = () => resolve(null);
+      $('apAppend').onclick = () => { window._modalResolve = null; closeModal(); resolve(false); };
+      $('apReplace').onclick = () => { window._modalResolve = null; closeModal(); resolve(true); };
+    });
+    if (replace === null) return;
+  }
+  const l = ensureLog(ui.date);
+  if (replace) l.foods = [];
+  plan.meals.forEach((m) => m.items.forEach((i) => addFood(i.food.id, m.meal.id, i.qty, ui.date, true)));
+  refresh(); toast(`${plan.tpl.name} applied • ${fmt(plan.kcal)} kcal, ${r1(plan.p)}g protein`);
+}
+
+/* =====================================================================
+ *  Module E: Profile & Biometric Calculator
+ * ===================================================================== */
+const PROFILE_LIMITS = { age: [13, 100], height: [120, 230], startWeight: [30, 300], currentWeight: [30, 300], targetWeight: [30, 300], stepGoal: [1000, 50000], waterGoal: [500, 8000], cardioGoal: [0, 300], customCalories: [1000, 5000], customProtein: [20, 400], customCarbs: [20, 700], customFat: [10, 250] };
+
+function renderProfile() {
+  const p = state.profile;
+  const inp = (k, label, type = 'number', extra = '') => `<div><label class="label" for="pf_${k}">${label}</label><input id="pf_${k}" data-field="${k}" type="${type}" class="input" value="${esc(p[k])}" onchange="setProfile(this)" ${extra}></div>`;
+  $('view-profile').innerHTML = `
+  <div class="fade-in space-y-5">
+    <div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Profile &amp; <span class="text-grad">Biometrics</span></h1><p class="text-sm muted">Every change recalculates your targets, dashboard and diagnostics live</p></div>
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-5">
+      <div class="space-y-5 xl:col-span-3">
+        <div class="card card-pad">
+          <div class="h-title mb-3"><i class="fa-solid fa-id-card mr-1 text-amber-500"></i>Personal Details</div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            ${inp('name', 'Full name', 'text', 'maxlength="60"')}
+            ${inp('age', 'Age (years)', 'number', 'min="13" max="100"')}
+            <div><label class="label">Gender</label><select data-field="gender" class="input" onchange="setProfile(this)"><option value="male" ${p.gender === 'male' ? 'selected' : ''}>Male</option><option value="female" ${p.gender === 'female' ? 'selected' : ''}>Female</option></select></div>
+            ${inp('height', 'Height (cm)', 'number', 'min="120" max="230" step="0.5"')}
+            <div class="sm:col-span-2"><label class="label">Occupation / Lifestyle</label><select data-field="lifestyle" class="input" onchange="setProfile(this)">${Object.entries(LIFESTYLES).map(([k, v]) => `<option value="${k}" ${p.lifestyle === k ? 'selected' : ''}>${v.label} (×${v.factor})</option>`).join('')}</select></div>
+          </div>
+        </div>
+        <div class="card card-pad">
+          <div class="h-title mb-3"><i class="fa-solid fa-bullseye mr-1 text-violet-500"></i>Weight &amp; Goal Configuration</div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            ${inp('startWeight', 'Starting weight (kg)', 'number', 'step="0.1"')}
+            ${inp('startDate', 'Start date', 'date', `max="${todayStr()}"`)}
+            ${inp('currentWeight', 'Current weight (kg)', 'number', 'step="0.1"')}
+            ${inp('targetWeight', 'Target weight (kg)', 'number', 'step="0.1"')}
+            <div><label class="label">Target weight reduction</label><div id="pfReduction" class="input !bg-violet-50 font-bold text-violet-700 dark:!bg-violet-400/10 dark:text-violet-300"></div></div>
+            <div><label class="label">Target weekly loss rate</label><select data-field="weeklyRate" class="input" onchange="setProfile(this)">${[0.25, 0.5, 0.75, 1].map((r) => `<option value="${r}" ${p.weeklyRate === r ? 'selected' : ''}>${r} kg / week${r === 0.5 ? ' (recommended)' : r === 1 ? ' (aggressive)' : ''}</option>`).join('')}</select></div>
+          </div>
+        </div>
+        <div class="card card-pad">
+          <div class="h-title mb-3"><i class="fa-solid fa-sliders mr-1 text-cyan-500"></i>Custom Goal Targets</div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            ${inp('stepGoal', 'Daily step goal', 'number', 'step="500"')}
+            <div><label class="label">Daily water goal (ml)</label><input id="pf_waterGoal" data-field="waterGoal" type="number" step="250" class="input" value="${p.waterAuto ? targets().water : p.waterGoal}" ${p.waterAuto ? 'disabled' : ''} onchange="setProfile(this)">
+              <label class="mt-2 flex items-center gap-2 text-xs font-semibold"><span class="switch ${p.waterAuto ? 'on' : ''}" role="switch" aria-checked="${p.waterAuto}" onclick="toggleProfileFlag('waterAuto')"></span>Auto (35 ml/kg)</label></div>
+            ${inp('cardioGoal', 'Daily cardio (min)', 'number', 'step="5"')}
+          </div>
+          <div class="mt-4 rounded-xl border border-amber-100 p-3 dark:border-white/5">
+            <label class="flex items-center gap-3 text-sm font-bold"><span class="switch ${p.customTargets ? 'on' : ''}" role="switch" aria-checked="${p.customTargets}" onclick="toggleProfileFlag('customTargets')"></span>Custom calorie &amp; macro override</label>
+            <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 ${p.customTargets ? '' : 'pointer-events-none opacity-40'}">
+              ${inp('customCalories', 'Calories', 'number', 'step="50"')}${inp('customProtein', 'Protein (g)')}${inp('customCarbs', 'Carbs (g)')}${inp('customFat', 'Fat (g)')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="xl:col-span-2"><div id="profileReadout" class="space-y-5 xl:sticky xl:top-24"></div></div>
+    </div>
+  </div>`;
+  renderProfileReadout();
+}
+
+function renderProfileReadout() {
+  const p = state.profile, t = targets(), b = bmiInfo(), pr = projection();
+  const red = $('pfReduction'); if (red) red.textContent = `${r1(Math.max(0, p.currentWeight - p.targetWeight))} kg to lose`;
+  const wg = $('pf_waterGoal'); if (wg && p.waterAuto) wg.value = t.water;
+  const bmiPct = clamp((b.bmi - 15) / (40 - 15), 0, 1);
+  const tbmi = bmiInfo(p.targetWeight);
+  $('profileReadout').innerHTML = `
+    <div class="card overflow-hidden">
+      <div class="grad-amber p-5 text-white">
+        <div class="text-xs font-bold uppercase tracking-widest opacity-80">Live Scientific Readout</div>
+        <div class="mt-1 text-2xl font-extrabold">${esc(p.name || 'Athlete')}</div>
+        <div class="text-sm opacity-90">${p.age} yrs • ${p.gender === 'female' ? 'Female' : 'Male'} • ${p.height} cm • ${LIFESTYLES[p.lifestyle].label}</div>
+      </div>
+      <div class="card-pad space-y-4">
+        <div>
+          <div class="flex items-end justify-between"><div><div class="text-xs font-bold uppercase muted">Body Mass Index</div><div class="text-3xl font-extrabold">${r1(b.bmi)}</div></div>
+          <div class="space-y-1 text-right"><div class="text-[10px] font-bold uppercase muted">WHO <span class="pill pill-${b.who[1]}">${b.who[0]}</span></div><div class="text-[10px] font-bold uppercase muted">Asian/Indian <span class="pill pill-${b.asian[1]}">${b.asian[0]}</span></div></div></div>
+          <div class="relative mt-3 h-2.5 rounded-full" style="background:linear-gradient(90deg,#38BDF8 0%,#10B981 22%,#10B981 32%,#F59E0B 40%,#F97316 60%,#F43F5E 100%)"><div class="absolute -top-1 h-4.5 w-1.5 rounded-full bg-zinc-900 ring-2 ring-white dark:bg-white dark:ring-zinc-900" style="left:calc(${bmiPct * 100}% - 3px);height:18px"></div></div>
+          <div class="mt-1 flex justify-between text-[10px] muted"><span>15</span><span>18.5</span><span>23</span><span>25</span><span>30</span><span>40</span></div>
+          <div class="mt-1 text-[11px] muted">At your target weight of ${p.targetWeight} kg your BMI would be <b>${r1(tbmi.bmi)}</b> (${tbmi.asian[0]}, Asian cut-offs).</div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="stat-box"><div class="text-[11px] font-bold uppercase muted">BMR</div><div class="text-xl font-extrabold">${fmt(t.bmr)}</div><div class="text-[10px] muted">Mifflin-St Jeor • kcal/day</div></div>
+          <div class="stat-box"><div class="text-[11px] font-bold uppercase muted">TDEE</div><div class="text-xl font-extrabold">${fmt(t.tdee)}</div><div class="text-[10px] muted">BMR × ${LIFESTYLES[p.lifestyle].factor}</div></div>
+          <div class="stat-box col-span-2 !border-emerald-200 !bg-emerald-50 dark:!border-emerald-400/20 dark:!bg-emerald-400/10">
+            <div class="text-[11px] font-bold uppercase text-emerald-700 dark:text-emerald-300">Recommended daily calories${p.customTargets ? ' (custom)' : ''}</div>
+            <div class="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300">${fmt(t.kcal)} <span class="text-sm">kcal</span></div>
+            <div class="text-[11px] text-emerald-800/80 dark:text-emerald-200/80">Deficit of ${fmt(t.effectiveDeficit)} kcal/day ≈ ${r2(t.effectiveDeficit * 7 / KCAL_PER_KG)} kg/week${t.floored && !p.customTargets ? ` • floored at the ${fmt(minCalories())} kcal safety minimum` : ''}</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-2 text-center">
+          ${[['Protein', t.protein, '#8B5CF6'], ['Carbs', t.carbs, '#F59E0B'], ['Fat', t.fat, '#F43F5E'], ['Fiber', t.fiber, '#10B981']].map(([n, v, c]) => `<div class="stat-box !p-2"><div class="text-[10px] font-bold uppercase muted">${n}</div><div class="font-extrabold" style="color:${c}">${Math.round(v)}g</div></div>`).join('')}
+        </div>
+        <div class="text-[11px] muted">Protein range: ${Math.round(t.proteinMin)}–${Math.round(t.proteinMax)} g (1.2–1.6 g/kg target weight) • Water: ${fmt(t.water)} ml • Steps: ${fmt(t.steps)} • Cardio: ${t.cardio} min/day</div>
+        <div class="rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-400/20 dark:bg-violet-400/10">
+          <div class="text-[11px] font-bold uppercase text-violet-700 dark:text-violet-300">Estimated target achievement date</div>
+          ${pr.remaining > 0 ? `<div class="text-xl font-extrabold text-violet-700 dark:text-violet-300">${fmtDate(pr.planDate, { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div class="text-[11px] text-violet-800/80 dark:text-violet-200/80">${r1(pr.remaining)} kg at ${p.weeklyRate} kg/week ≈ ${Math.ceil(pr.remaining / p.weeklyRate)} weeks • Actual-pace projection: <b>${fmtDate(pr.date, { day: 'numeric', month: 'short', year: 'numeric' })}</b> (${pr.basis})</div>` : '<div class="text-lg font-extrabold text-violet-700 dark:text-violet-300"><i class="fa-solid fa-trophy"></i> Goal reached — set a new target!</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+function setProfile(el) {
+  const k = el.dataset.field; const p = state.profile;
+  let v = el.value;
+  if (k === 'name') v = v.trim().slice(0, 60) || 'Athlete';
+  else if (k === 'startDate') { if (!isDateKey(v) || v > todayStr()) { el.value = p.startDate; return toast('Choose a valid start date (not in the future)', 'warn'); } }
+  else if (k === 'gender' || k === 'lifestyle') { /* string enums */ }
+  else {
+    v = num(v, NaN);
+    const lim = PROFILE_LIMITS[k];
+    if (!Number.isFinite(v) || (lim && (v < lim[0] || v > lim[1]))) { el.value = p[k]; return toast(`${el.closest('div').querySelector('label').textContent} must be between ${lim[0]} and ${lim[1]}`, 'warn'); }
+    if (['startWeight', 'currentWeight', 'targetWeight', 'height'].includes(k)) v = r1(v);
+  }
+  p[k] = v;
+  if (k === 'targetWeight' && p.targetWeight >= p.currentWeight) toast('Target weight is at or above current weight — maintenance mode', 'info');
+  save(); renderProfileReadout(); renderHeader();
+}
+function toggleProfileFlag(k) { state.profile[k] = !state.profile[k]; save(); renderProfile(); renderHeader(); }
+
+
+/* =====================================================================
+ *  Module F: Data Vault & Cloudflare Cloud Sync (MiyeeCFO Architecture)
+ * ===================================================================== */
+function vaultStats() {
+  const raw = JSON.stringify(state);
+  const days = Object.keys(state.logs).sort();
+  const foods = sum(days, (d) => state.logs[d].foods.length);
+  const cardio = sum(days, (d) => state.logs[d].cardio.length);
+  const weighIns = days.filter((d) => state.logs[d].bio.weight).length;
+  return { kb: new Blob([raw]).size / 1024, days: days.length, foods, cardio, weighIns, custom: state.customFoods.length, records: days.length + foods + cardio + weighIns + state.customFoods.length, first: days[0], last: days[days.length - 1] };
+}
+
+function renderVault() {
+  const st = vaultStats(), cf = state.settings.cf;
+  const statusMap = { idle: ['bg-zinc-400', 'Idle'], ok: ['bg-emerald-500', 'Connected'], syncing: ['bg-amber-500 animate-pulse', 'Syncing…'], error: ['bg-rose-500', 'Error'] };
+  const sm = statusMap[cf.status] || statusMap.idle;
+  $('view-vault').innerHTML = `
+  <div class="fade-in space-y-5">
+    <div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Data Vault &amp; <span class="text-grad">Cloud Sync</span></h1><p class="text-sm muted">MiyeeCFO-grade data management • your data never leaves this browser unless you push it to <i>your own</i> Cloudflare Worker</p></div>
+
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div class="card card-pad">
+        <div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-database mr-1 text-amber-500"></i>Local Storage Engine</div><span class="pill pill-green"><i class="fa-solid fa-circle"></i>Auto-saving</span></div>
+        <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          ${[['Storage used', r1(st.kb) + ' KB', 'fa-hard-drive'], ['Total records', fmt(st.records), 'fa-layer-group'], ['Days logged', fmt(st.days), 'fa-calendar-days'], ['Food entries', fmt(st.foods), 'fa-bowl-food'], ['Cardio sessions', fmt(st.cardio), 'fa-heart-pulse'], ['Weigh-ins', fmt(st.weighIns), 'fa-weight-scale']].map(([l, v, ic]) => `<div class="stat-box"><div class="flex items-center gap-1.5 text-[11px] font-bold uppercase muted"><i class="fa-solid ${ic} text-amber-500"></i>${l}</div><div class="mt-1 text-lg font-extrabold">${v}</div></div>`).join('')}
+        </div>
+        ${bar(st.kb / 5120, 'linear-gradient(90deg,#F59E0B,#EA580C)', 'h-2 mt-4')}
+        <div class="mt-1 flex justify-between text-[11px] muted"><span>${r1(st.kb)} KB of ~5 MB browser quota</span><span>${st.custom} custom food(s)</span></div>
+        <div class="mt-3 space-y-1 text-xs muted">
+          <div>Schema key: <span class="mono font-semibold text-amber-700 dark:text-amber-400">${STORAGE_KEY}</span> • version ${state.version}</div>
+          <div>Data range: ${st.first ? `${fmtDate(st.first, { day: 'numeric', month: 'short', year: 'numeric' })} → ${fmtDate(st.last, { day: 'numeric', month: 'short', year: 'numeric' })}` : 'no logs yet'}</div>
+          <div>Last saved: ${fmtDateTime(state.meta.updated)} • Vault created: ${fmtDateTime(state.meta.created)}</div>
+        </div>
+      </div>
+
+      <div class="card card-pad">
+        <div class="flex items-center justify-between"><div class="h-title"><i class="fa-brands fa-cloudflare mr-1 text-orange-500"></i>Cloudflare Worker / KV Sync</div>
+          <span class="flex items-center gap-2 text-xs font-bold"><span class="h-2.5 w-2.5 rounded-full ${sm[0]}"></span>${sm[1]}</span></div>
+        <div class="mt-4 space-y-3">
+          <div><label class="label">Worker endpoint URL</label><input id="cfUrl" class="input mono !text-xs" placeholder="https://miyeefit-vault.your-subdomain.workers.dev" value="${esc(cf.url)}" onchange="saveCfField('url', this.value)"></div>
+          <div><label class="label">Secret sync key / vault token</label>
+            <div class="flex gap-1.5"><input id="cfToken" type="password" class="input mono !text-xs" placeholder="Same value as the SYNC_TOKEN secret" value="${esc(cf.token)}" onchange="saveCfField('token', this.value)" autocomplete="off">
+            <button class="btn btn-ghost !px-3" onclick="const i=$('cfToken');i.type=i.type==='password'?'text':'password'" title="Show / hide" aria-label="Show or hide token"><i class="fa-solid fa-eye"></i></button>
+            <button class="btn btn-ghost !px-3" onclick="generateToken()" title="Generate a strong random token" aria-label="Generate token"><i class="fa-solid fa-key"></i></button></div></div>
+          <label class="flex items-center justify-between gap-3 rounded-xl border border-amber-100 p-3 text-sm font-semibold dark:border-white/5"><span><i class="fa-solid fa-rotate mr-1 text-amber-500"></i>Auto-Sync on Change<div class="text-[11px] font-normal muted">Pushes to your vault 4 s after each edit</div></span><span class="switch ${cf.auto ? 'on' : ''}" role="switch" aria-checked="${cf.auto}" onclick="toggleAutoSync()"></span></label>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="btn btn-primary" onclick="cfPush()"><i class="fa-solid fa-cloud-arrow-up"></i>Push to Vault</button>
+            <button class="btn btn-outline" onclick="cfPull()"><i class="fa-solid fa-cloud-arrow-down"></i>Pull from Vault</button>
+            <button class="btn btn-soft" onclick="cfTest()"><i class="fa-solid fa-plug-circle-check"></i>Test Connection</button>
+            <button class="btn btn-soft" onclick="showWorkerScript()"><i class="fa-solid fa-code"></i>View Worker Script</button>
+          </div>
+          <div class="rounded-xl bg-amber-50 p-3 text-xs dark:bg-white/[.03]">
+            <div class="flex justify-between"><span class="muted">Last push</span><b>${fmtDateTime(cf.lastPush)}</b></div>
+            <div class="flex justify-between"><span class="muted">Last pull</span><b>${fmtDateTime(cf.lastPull)}</b></div>
+            <div class="mt-1 muted">${esc(cf.message || '')}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-pad">
+        <div class="h-title"><i class="fa-solid fa-file-export mr-1 text-emerald-500"></i>File Backup &amp; Portability</div>
+        <div class="mt-4 space-y-2">
+          <button class="btn btn-soft w-full !justify-start" onclick="exportJSON()"><i class="fa-solid fa-file-code w-5"></i>Export Full Backup (.json)<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">profile, logs, custom foods, settings</span></button>
+          <label class="btn btn-soft w-full cursor-pointer !justify-start"><i class="fa-solid fa-file-import w-5"></i>Import / Restore Backup (.json)<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">schema-validated</span><input type="file" accept="application/json,.json" class="hidden" onchange="importJSON(this)"></label>
+          <button class="btn btn-soft w-full !justify-start" onclick="exportCSV()"><i class="fa-solid fa-file-csv w-5"></i>Export Progress Report (.csv)<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">date-wise summary</span></button>
+        </div>
+        <div class="mt-3 text-[11px] muted"><i class="fa-solid fa-lock"></i> Exports never include your Cloudflare sync token.</div>
+      </div>
+
+      <div class="card card-pad">
+        <div class="h-title"><i class="fa-solid fa-flask mr-1 text-violet-500"></i>Demo Data &amp; Reset</div>
+        <div class="mt-4 space-y-2">
+          <button class="btn btn-soft w-full !justify-start" onclick="loadDemoData()"><i class="fa-solid fa-wand-magic-sparkles w-5"></i>Load Realistic 14-Day Demo Data<span class="ml-auto hidden text-[11px] font-normal sm:inline muted">replaces logs</span></button>
+          <button class="btn w-full !justify-start border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-400/20 dark:text-rose-400 dark:hover:bg-rose-400/10" onclick="factoryReset()"><i class="fa-solid fa-triangle-exclamation w-5"></i>Factory Reset Vault<span class="ml-auto hidden text-[11px] font-normal sm:inline opacity-70">irreversible</span></button>
+        </div>
+        <div class="mt-3 text-[11px] muted">Tip: export a JSON backup before loading demo data or resetting.</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSyncIndicator() {
+  const cf = state.settings.cf;
+  const dot = $('sideSyncDot'), txt = $('sideSyncText'); if (!dot) return;
+  const configured = cf.url && cf.token;
+  dot.className = 'h-2 w-2 rounded-full ' + (!configured ? 'bg-zinc-400' : cf.status === 'error' ? 'bg-rose-500' : cf.status === 'syncing' ? 'bg-amber-500 animate-pulse' : cf.status === 'ok' ? 'bg-emerald-500' : 'bg-amber-400');
+  txt.textContent = !configured ? 'Local-only mode' : cf.status === 'error' ? 'Sync error — see Vault' : cf.lastPush ? `${cf.auto ? 'Auto-sync on • ' : ''}Pushed ${timeAgo(cf.lastPush)}` : 'Configured, not yet synced';
+}
+function timeAgo(iso) {
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago';
+}
+function setCfStatus(status, message) { state.settings.cf.status = status; state.settings.cf.message = message; save({ skipSync: true }); renderSyncIndicator(); if (ui.view === 'vault') renderVault(); }
+function saveCfField(k, v) { state.settings.cf[k] = String(v).trim(); if (k === 'url') state.settings.cf.url = state.settings.cf.url.replace(/\/+$/, ''); state.settings.cf.status = 'idle'; state.settings.cf.message = 'Settings updated — test the connection'; save({ skipSync: true }); renderSyncIndicator(); }
+function generateToken() {
+  const bytes = new Uint8Array(24); crypto.getRandomValues(bytes);
+  const tok = 'mft_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  $('cfToken').value = tok; $('cfToken').type = 'text'; saveCfField('token', tok);
+  toast('Token generated — set the same value as SYNC_TOKEN in your Worker', 'info');
+}
+function toggleAutoSync() {
+  const cf = state.settings.cf;
+  if (!cf.auto && !(cf.url && cf.token)) return toast('Configure the Worker URL and token first', 'warn');
+  cf.auto = !cf.auto; save({ skipSync: true }); renderVault(); renderSyncIndicator();
+  toast(cf.auto ? 'Auto-sync enabled' : 'Auto-sync disabled', 'info');
+  if (cf.auto) cfPush(true);
+}
+function cfReady() {
+  const cf = state.settings.cf;
+  if (!cf.url || !/^https?:\/\//i.test(cf.url)) { toast('Enter a valid Worker URL (https://…)', 'warn'); return false; }
+  if (!cf.token || cf.token.length < 8) { toast('Enter your sync token (8+ characters)', 'warn'); return false; }
+  return true;
+}
+function exportableState() { const copy = JSON.parse(JSON.stringify(state)); copy.settings.cf = { ...copy.settings.cf, token: '', status: 'idle' }; return copy; }
+
+async function cfFetch(path, opts = {}) {
+  const cf = state.settings.cf;
+  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(cf.url + path, { ...opts, signal: ctrl.signal, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cf.token, ...(opts.headers || {}) } });
+    let body = null; try { body = await res.json(); } catch (e) { body = null; }
+    return { res, body };
+  } finally { clearTimeout(timer); }
+}
+async function cfTest() {
+  if (!cfReady()) return;
+  setCfStatus('syncing', 'Testing connection…');
+  try {
+    const { res, body } = await cfFetch('/health', { method: 'GET' });
+    if (!res.ok || !body || !body.ok) throw new Error(`Health check failed (HTTP ${res.status})`);
+    if (!body.kvBound) throw new Error('Worker reachable, but the MIYEEFIT_VAULT KV binding is missing');
+    const probe = await cfFetch('/vault', { method: 'GET' });
+    if (probe.res.status === 401) throw new Error('Worker reachable, but the token was rejected (401)');
+    setCfStatus('ok', probe.res.status === 404 ? 'Connected • vault is empty, push to initialise it' : `Connected • remote vault last updated ${fmtDateTime(probe.body && probe.body.updatedAt)}`);
+    toast('Cloudflare Vault connection verified');
+  } catch (e) { setCfStatus('error', e.name === 'AbortError' ? 'Request timed out' : e.message); toast(e.name === 'AbortError' ? 'Connection timed out' : e.message, 'error'); }
+}
+let pushing = false;
+async function cfPush(silent = false) {
+  if (!cfReady()) return;
+  if (pushing) return; pushing = true;
+  setCfStatus('syncing', 'Pushing vault to Cloudflare…');
+  try {
+    const payload = JSON.stringify({ updatedAt: state.meta.updated, data: exportableState() });
+    const { res, body } = await cfFetch('/vault', { method: 'PUT', body: payload });
+    if (!res.ok || !body || !body.ok) throw new Error((body && body.error) || `Push failed (HTTP ${res.status})`);
+    state.settings.cf.lastPush = new Date().toISOString();
+    setCfStatus('ok', `Pushed ${r1(payload.length / 1024)} KB • stored at ${fmtDateTime(body.storedAt)}`);
+    if (!silent) toast('Vault pushed to Cloudflare ☁️');
+  } catch (e) { setCfStatus('error', e.name === 'AbortError' ? 'Push timed out' : e.message); if (!silent) toast(e.message, 'error'); }
+  finally { pushing = false; }
+}
+async function cfPull() {
+  if (!cfReady()) return;
+  setCfStatus('syncing', 'Pulling vault from Cloudflare…');
+  try {
+    const { res, body } = await cfFetch('/vault', { method: 'GET' });
+    if (res.status === 404) throw new Error('Remote vault is empty — push first');
+    if (!res.ok || !body || !body.data) throw new Error((body && body.error) || `Pull failed (HTTP ${res.status})`);
+    const incoming = sanitizeState(body.data);
+    const remoteDays = Object.keys(incoming.logs).length;
+    setCfStatus('ok', 'Remote vault fetched — awaiting confirmation');
+    const ok = await confirmDialog({ title: 'Restore from Cloudflare Vault', message: `Remote vault updated <b>${fmtDateTime(body.updatedAt)}</b> contains <b>${remoteDays}</b> logged day(s). Your local vault was updated <b>${fmtDateTime(state.meta.updated)}</b> with <b>${Object.keys(state.logs).length}</b> day(s).<br><br>Replace local data with the remote copy?`, confirmText: 'Replace local data' });
+    if (!ok) { setCfStatus('ok', 'Pull cancelled — local data unchanged'); return; }
+    const cf = { ...state.settings.cf };
+    state = incoming; state.settings.cf = { ...cf, lastPull: new Date().toISOString(), status: 'ok', message: `Restored ${remoteDays} day(s) from Cloudflare` };
+    applyTheme(); save({ skipSync: true }); renderAll(); toast('Vault restored from Cloudflare');
+  } catch (e) { setCfStatus('error', e.name === 'AbortError' ? 'Pull timed out' : e.message); toast(e.message, 'error'); }
+}
+let syncTimer = null;
+function scheduleAutoSync() {
+  const cf = state.settings.cf;
+  if (!cf.auto || !cf.url || !cf.token) return;
+  clearTimeout(syncTimer); syncTimer = setTimeout(() => cfPush(true), 4000);
+}
+
+function showWorkerScript() {
+  const code = $('workerSource').textContent.trim();
+  openModal('<i class="fa-brands fa-cloudflare text-orange-500"></i> Cloudflare Worker Script — worker.js', `
+    <ol class="mb-4 list-decimal space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-300">
+      <li><b>Workers &amp; Pages → Create → Worker</b>, paste the script below and click <b>Deploy</b>.</li>
+      <li><b>Storage &amp; Databases → KV → Create namespace</b> (e.g. <span class="mono">miyeefit-vault</span>).</li>
+      <li>Worker <b>Settings → Bindings → KV namespace</b>, variable name <span class="mono font-bold">MIYEEFIT_VAULT</span>.</li>
+      <li>Worker <b>Settings → Variables and Secrets → Secret</b> named <span class="mono font-bold">SYNC_TOKEN</span> (use the 🔑 generator in the Vault).</li>
+      <li>Paste the <span class="mono">*.workers.dev</span> URL and the token here, then <b>Test Connection</b>.</li>
+    </ol>
+    <div class="relative"><button class="btn btn-primary btn-sm absolute right-2 top-2" onclick="copyWorker()"><i class="fa-regular fa-copy"></i>Copy</button>
+    <pre class="scroll-thin max-h-[48vh] overflow-auto rounded-xl bg-zinc-950 p-4 text-[11px] leading-relaxed text-amber-100"><code class="mono">${esc(code)}</code></pre></div>
+    <details class="mt-3 text-sm"><summary class="cursor-pointer font-semibold">Prefer Wrangler CLI? wrangler.toml</summary>
+    <pre class="mt-2 overflow-auto rounded-xl bg-zinc-950 p-3 text-[11px] text-amber-100"><code class="mono">name = "miyeefit-vault"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+[[kv_namespaces]]
+binding = "MIYEEFIT_VAULT"
+id = "&lt;your-kv-namespace-id&gt;"
+
+# then run:  npx wrangler secret put SYNC_TOKEN  &amp;&amp;  npx wrangler deploy</code></pre></details>`,
+    `<button class="btn btn-soft" onclick="downloadFile('worker.js', $('workerSource').textContent.trim(), 'text/javascript')"><i class="fa-solid fa-download"></i>Download worker.js</button><button class="btn btn-primary" onclick="copyWorker()"><i class="fa-regular fa-copy"></i>Copy Script</button>`);
+}
+async function copyWorker() {
+  const code = $('workerSource').textContent.trim();
+  try { await navigator.clipboard.writeText(code); toast('worker.js copied to clipboard'); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = code; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('worker.js copied to clipboard'); } catch (err) { toast('Copy failed — select the code manually', 'error'); }
+    ta.remove();
+  }
+}
+
+/* ---------- File backup & portability ---------- */
+function downloadFile(name, content, type) {
+  const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function exportJSON() {
+  const payload = { app: 'MiyeeFit Pro', brand: 'Miyee Tech Labs', website: 'https://miyeetechlabs.com', schema: SCHEMA, exportedAt: new Date().toISOString(), data: exportableState() };
+  downloadFile(`miyeefit-pro-backup-${todayStr()}.json`, JSON.stringify(payload, null, 2), 'application/json');
+  toast('Full backup exported');
+}
+function importJSON(input) {
+  const file = input.files && input.files[0]; input.value = '';
+  if (!file) return;
+  if (file.size > 15 * 1024 * 1024) return toast('Backup file is too large (max 15 MB)', 'error');
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const raw = parsed && parsed.data && parsed.data.profile ? parsed.data : parsed;
+      if (parsed.schema && parsed.schema !== SCHEMA) throw new Error(`Unsupported schema "${parsed.schema}"`);
+      const incoming = sanitizeState(raw);
+      const days = Object.keys(incoming.logs).length;
+      const ok = await confirmDialog({ title: 'Restore backup', message: `<b>${esc(file.name)}</b> is a valid MiyeeFit Pro backup for <b>${esc(incoming.profile.name)}</b> with <b>${days}</b> logged day(s) and <b>${incoming.customFoods.length}</b> custom food(s).<br><br>This will replace all current local data.`, confirmText: 'Restore backup' });
+      if (!ok) return;
+      const cf = { ...state.settings.cf };
+      state = incoming; state.settings.cf = { ...state.settings.cf, url: cf.url || state.settings.cf.url, token: cf.token, auto: cf.auto, lastPush: cf.lastPush, lastPull: cf.lastPull };
+      applyTheme(); save(); renderAll(); toast(`Backup restored • ${days} day(s)`);
+    } catch (e) { toast('Import failed: ' + e.message, 'error'); }
+  };
+  reader.onerror = () => toast('Could not read the file', 'error');
+  reader.readAsText(file);
+}
+function exportCSV() {
+  const days = Object.keys(state.logs).sort();
+  if (!days.length) return toast('Nothing to export yet — log some data first', 'warn');
+  const head = ['Date', 'Weight (kg)', 'Waist (cm)', 'Sleep (h)', 'Energy (1-5)', 'Steps', 'Distance (km)', 'Water (ml)', 'Calories In (kcal)', 'BMR (kcal)', 'Step Burn (kcal)', 'Cardio Burn (kcal)', 'Calories Burnt (kcal)', 'Net Deficit (kcal)', 'Cardio Minutes', 'Protein (g)', 'Carbs (g)', 'Fat (g)', 'Fiber (g)', 'Fitness Score'];
+  const q = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const rows = days.map((d) => {
+    const s = daySummary(d), b = state.logs[d].bio;
+    return [d, b.weight ?? '', b.waist ?? '', b.sleep ?? '', b.energy ?? '', s.steps, r2(s.distance), s.water, Math.round(s.intake), Math.round(s.bmr), Math.round(s.stepKcal), Math.round(s.cardioKcal), Math.round(s.burnt), s.hasFood ? Math.round(s.deficit) : '', s.cardioMin, r1(s.p), r1(s.c), r1(s.f), r1(s.fib), analyze(d).score].map(q).join(',');
+  });
+  downloadFile(`miyeefit-pro-report-${todayStr()}.csv`, '﻿' + [head.join(','), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
+  toast(`Progress report exported (${days.length} days)`);
+}
+
+/* ---------- Demo data & reset ---------- */
+async function loadDemoData() {
+  if (Object.keys(state.logs).length) {
+    const ok = await confirmDialog({ title: 'Load 14-day demo data', message: 'This replaces all existing daily logs and resets your profile weights with realistic sample data. Your custom foods and sync settings are kept.', confirmText: 'Load demo data', danger: true });
+    if (!ok) return;
+  }
+  const rnd = mulberry32(20241104);
+  const R = (a, b) => a + rnd() * (b - a);
+  const today = todayStr();
+  const hourNow = new Date().getHours();
+  const p = state.profile;
+  Object.assign(p, { startWeight: 86.0, startDate: addDays(today, -13), targetWeight: 74, weeklyRate: 0.5 });
+  state.logs = {};
+  const tplIds = ['hp_indian', 'lowgi', 'pro', 'hp_indian', 'jain'];
+  const cardioPlan = { 12: ['brisk_walk', 40, 1], 11: ['yoga', 30, 1], 9: ['cycling', 35, 1], 8: ['strength', 40, 1], 6: ['treadmill', 25, 2], 5: ['brisk_walk', 45, 1], 3: ['hiit', 20, 2], 2: ['swimming', 30, 1], 1: ['yoga', 25, 2], 0: ['brisk_walk', 30, 1] };
+  let w = 86.0, waist = 97.0;
+  for (let i = 13; i >= 0; i--) {
+    const d = addDays(today, -i);
+    const l = emptyLog();
+    const isToday = i === 0;
+    const dayFrac = isToday ? clamp((hourNow - 6) / 16, 0.15, 1) : 1;
+    const weekend = [0, 6].includes(parseYmd(d).getDay());
+    l.steps = Math.round((weekend ? R(9000, 13500) : R(5800, 11800)) * dayFrac / 10) * 10;
+    l.water = Math.round((R(2000, 3500) * dayFrac) / 250) * 250;
+    const tpl = tplIds[i % tplIds.length];
+    const swaps = {}; MEALS.forEach((m) => { swaps[m.id] = Math.floor(rnd() * 3); });
+    const plan = buildPlan(tpl, R(1550, 1900) + (weekend ? 250 : 0), swaps);
+    plan.meals.forEach((m) => {
+      if (isToday && m.meal.hour > hourNow) return;
+      if (m.meal.id === 'post' && !cardioPlan[i]) return;
+      if (m.meal.id === 'early' && rnd() < 0.3) return;
+      m.items.forEach((it) => {
+        const f = it.food;
+        l.foods.push({ id: uid(), fid: f.id, name: f.name, serving: f.serving, meal: m.meal.id, qty: it.qty, kcal: f.kcal, p: f.p, c: f.c, f: f.f, fib: f.fib });
+      });
+    });
+    if (weekend && !isToday) l.foods.push({ id: uid(), fid: 'masala_dosa', name: 'Masala Dosa', serving: '1 medium', meal: 'snack', qty: 1, kcal: 330, p: 7, c: 48, f: 12, fib: 4 });
+    if (cardioPlan[i] && (!isToday || hourNow >= 8)) {
+      const [type, dur, inten] = cardioPlan[i];
+      l.cardio.push({ id: uid(), type, dur, intensity: inten, kcal: Math.round(metKcal(type, inten, dur, w)), manual: false, notes: { brisk_walk: 'Evening walk in the park', yoga: '12 rounds Surya Namaskar', cycling: 'Weekend ride', strength: 'Full body — squats, push-ups, rows', treadmill: 'Intervals 8–10 km/h', hiit: 'Tabata 8 rounds', swimming: 'Freestyle laps' }[type] || '' });
+    }
+    w = w - R(0.02, 0.16) + (weekend ? R(0, 0.25) : 0);
+    waist = waist - R(0, 0.18);
+    if (i % 5 !== 2 || i === 0) l.bio.weight = r1(w + R(-0.2, 0.2));
+    if (i % 3 === 0) l.bio.waist = r1(waist);
+    if (!isToday || hourNow >= 7) { l.bio.sleep = r2(Math.round(R(5.75, 8.25) * 4) / 4); l.bio.energy = clamp(Math.round(R(2.6, 5.2)), 1, 5); }
+    state.logs[d] = l;
+  }
+  const latest = latestWeightEntry();
+  p.currentWeight = latest ? latest.weight : r1(w);
+  state.settings.demoDismissed = true;
+  save(); renderAll(); toast('14 days of realistic pure-veg demo data loaded 🎉');
+}
+async function factoryReset() {
+  const ok = await confirmDialog({ title: 'Factory reset vault', message: 'This permanently deletes your profile, every daily log, custom foods and sync settings from this browser. Remote Cloudflare data is <b>not</b> touched.', confirmText: 'Erase everything', danger: true, requireText: 'RESET' });
+  if (!ok) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = defaultState(); ui.date = todayStr();
+  save({ skipSync: true }); renderAll(); toast('Vault reset to factory defaults', 'info');
+}
+
+/* ---------- Boot ---------- */
+function applyTheme() { document.documentElement.classList.toggle('dark', state.settings.theme === 'dark'); }
+function renderAll() { renderHeader(); renderBanner(); renderNav(); go(ui.view); }
+
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && v !== ui.view) go(v); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
+  if (e.target.matches('input, select, textarea')) return;
+  if (e.key === 'ArrowLeft' && e.altKey) shiftDate(-1);
+  if (e.key === 'ArrowRight' && e.altKey) shiftDate(1);
+});
+window.addEventListener('storage', (e) => { if (e.key === STORAGE_KEY && e.newValue) { try { state = sanitizeState(JSON.parse(e.newValue)); applyTheme(); renderAll(); } catch (err) { /* ignore foreign writes */ } } });
+let lastDay = todayStr();
+setInterval(() => {
+  const t = todayStr();
+  if (t !== lastDay) { if (ui.date === lastDay) ui.date = t; lastDay = t; renderAll(); }
+  else renderSyncIndicator();
+}, 60000);
+
+(function boot() {
+  applyTheme();
+  const v = location.hash.slice(1);
+  ui.view = VIEWS.some((x) => x.id === v) ? v : 'dashboard';
+  if (!localStorage.getItem(STORAGE_KEY)) save({ skipSync: true });
+  if (typeof Chart === 'undefined') console.warn('Chart.js failed to load — charts are disabled, all other features work offline.');
+  renderAll();
+})();
+</script>
+</body>
+</html>
