@@ -15,6 +15,16 @@ The whole app is a single `index.html` (Tailwind CSS, Chart.js and Font Awesome 
 - **Trainers & coaching**: Member or Trainer / Coach accounts. Members choose a listed trainer in Profile or My Coach (the list is empty and disabled until a trainer signs up). Trainers see their clients' progress, set daily targets (steps, cardio, water, calories, protein), assign exercises per weekday, write instructions and message clients. Targets a coach leaves blank are set by the member in Profile.
 - **User Guide**: an interactive step-by-step tour (member and trainer versions) plus a written guide, opened from the ? button.
 
+## Calculation standards
+- BMR: Mifflin-St Jeor. TDEE: BMR × 1.2 / 1.375 / 1.55 / 1.725.
+- Calories burnt: BMR + thermic effect of food (10% of intake) + steps + exercise.
+- Exercise: net (active) calories, (MET − 1) × 3.5 × kg ÷ 200 × min, Compendium of Physical Activities 2024. Steps the phone already counted during a logged walk or run are not counted twice.
+- Steps: ACSM walking equation, 0.5 kcal per kg per km; stride 41.5% (men) / 41.3% (women) of height.
+- Weekly exercise: WHO 2020, 150–300 moderate-equivalent minutes, vigorous (≥6 MET) counts double.
+- Water: 30 ml/kg within 2.0–4.0 L (EFSA/IOM). Sleep: 7–9 h (AASM/NSF). Protein: 1.2–1.6 g/kg goal weight. Fibre: 14 g/1,000 kcal, min 25 g.
+- BMI: WHO and Asian-Indian cut-offs. Waist: waist-to-height ratio < 0.5 (NICE), waist < 90 cm men / 80 cm women (IDF South Asian).
+- Members who don't log food can turn off "I log my food": calorie and protein checks are skipped and the score is rescaled from the other 55 points.
+
 ## Accounts & cloud sync
 - Sign up with name, email and password. Passwords are hashed with PBKDF2-SHA256 (100k iterations), and sessions last 30 days.
 - Every change is saved locally first, then pushed to the cloud about 1.5 s later. It works offline and syncs again when the connection is back.
