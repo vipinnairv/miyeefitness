@@ -1,5 +1,5 @@
 {
-  // MiyeeFit Pro — Cloudflare Worker (static app + cloud account API)
+  // MiyeeFit Pro: Cloudflare Worker (static app + cloud account API)
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "miyeefitness",
   "main": "worker/index.js",
