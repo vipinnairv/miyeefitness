@@ -1,6 +1,6 @@
 # MiyeeFit Pro
 
-**Personal Fitness, Weight Reduction & Pure Vegetarian Nutrition Tracker** — engineered by [Miyee Tech Labs](https://miyeetechlabs.com).
+**Personal Fitness, Weight Reduction & Pure Vegetarian Nutrition Tracker**, engineered by [Miyee Tech Labs](https://miyeetechlabs.com).
 
 The whole app is a single `index.html` (Tailwind CSS, Chart.js and Font Awesome from CDN). A small Cloudflare Worker serves it and adds **user accounts with cloud-saved data**.
 

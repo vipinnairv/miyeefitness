@@ -1,5 +1,5 @@
 /**
- * MiyeeFit Pro — Cloud API Worker
+ * MiyeeFit Pro: Cloud API Worker
  * Engineered by Miyee Tech Labs • miyeetechlabs.com
  *
  * Serves the static app (index.html) and a small JSON API under /api/*:
@@ -105,7 +105,7 @@ async function authenticate(request, env) {
   if (!/^[0-9a-f]{64}$/.test(token)) throw new HttpError(401, 'Please sign in');
   const key = await sha256(token);
   const raw = await env.MIYEEFIT_KV.get('session:' + key);
-  if (!raw) throw new HttpError(401, 'Your session has expired — please sign in again');
+  if (!raw) throw new HttpError(401, 'Your session has expired. Please sign in again');
   const session = JSON.parse(raw);
   const user = await getUser(env, session.uid);
   if (!user) throw new HttpError(401, 'Account not found');
@@ -124,7 +124,7 @@ async function signup(request, env) {
   if (!name) throw new HttpError(400, 'Please enter your name');
   if (!validEmail(email)) throw new HttpError(400, 'Please enter a valid email address');
   checkPassword(body.password);
-  if (await env.MIYEEFIT_KV.get('email:' + email)) throw new HttpError(409, 'An account with this email already exists — sign in instead');
+  if (await env.MIYEEFIT_KV.get('email:' + email)) throw new HttpError(409, 'An account with this email already exists. Sign in instead');
   const salt = randomHex(16);
   const user = { id: randomHex(12), email, name, salt, hash: await pbkdf2(body.password, salt, PBKDF2_ITER), iter: PBKDF2_ITER, created: new Date().toISOString(), sessions: [] };
   await env.MIYEEFIT_KV.put('email:' + email, user.id);
@@ -138,7 +138,7 @@ async function login(request, env) {
   if (!validEmail(email) || typeof body.password !== 'string' || !body.password) throw new HttpError(400, 'Enter your email and password');
   const rlKey = 'rl:' + email;
   const failed = parseInt((await env.MIYEEFIT_KV.get(rlKey)) || '0', 10);
-  if (failed >= MAX_FAILED) throw new HttpError(429, 'Too many failed attempts — please wait 15 minutes and try again');
+  if (failed >= MAX_FAILED) throw new HttpError(429, 'Too many failed attempts. Please wait 15 minutes and try again');
   const id = await env.MIYEEFIT_KV.get('email:' + email);
   const user = id ? await getUser(env, id) : null;
   const ok = user ? await verifyPassword(user, body.password) : (await pbkdf2(body.password, '00'.repeat(16), PBKDF2_ITER), false);
