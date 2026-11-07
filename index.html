@@ -208,6 +208,7 @@
       <section id="view-insights" class="view hidden"></section>
       <section id="view-planner" class="view hidden"></section>
       <section id="view-profile" class="view hidden"></section>
+      <section id="view-bp" class="view hidden"></section>
       <section id="view-coach" class="view hidden"></section>
       <section id="view-vault" class="view hidden"></section>
       <section id="view-guide" class="view hidden"></section>
@@ -488,7 +489,7 @@ function defaultState() {
     meta: { created: now, updated: now }
   };
 }
-const emptyLog = () => ({ steps: 0, water: 0, foods: [], cardio: [], bio: {}, done: [] });
+const emptyLog = () => ({ steps: 0, water: 0, foods: [], cardio: [], bio: {}, done: [], bp: [] });
 
 function sanitizeLog(l) {
   const out = emptyLog();
@@ -507,6 +508,13 @@ function sanitizeLog(l) {
   const b = l.bio && typeof l.bio === 'object' ? l.bio : {};
   ['weight', 'waist', 'sleep', 'energy'].forEach((k) => { if (b[k] !== undefined && b[k] !== null && b[k] !== '' && Number.isFinite(num(b[k], NaN))) out.bio[k] = num(b[k]); });
   out.done = (Array.isArray(l.done) ? l.done : []).filter((x) => typeof x === 'string' && x.length <= 40).slice(0, 100);
+  out.bp = (Array.isArray(l.bp) ? l.bp : []).map((x) => ({
+    id: String((x && x.id) || uid()), slot: x && x.slot === 'evening' ? 'evening' : 'morning',
+    time: x && /^\d{2}:\d{2}$/.test(x.time) ? x.time : (x && x.slot === 'evening' ? '20:00' : '07:30'),
+    sys: Math.round(num(x && x.sys, NaN)), dia: Math.round(num(x && x.dia, NaN)),
+    pulse: x && x.pulse !== null && x.pulse !== undefined && x.pulse !== '' ? Math.round(num(x.pulse, NaN)) : null,
+    notes: String((x && x.notes) || '').slice(0, 120)
+  })).filter((x) => x.sys >= 60 && x.sys <= 260 && x.dia >= 30 && x.dia <= 160 && x.sys > x.dia && (x.pulse === null || (x.pulse >= 30 && x.pulse <= 220))).slice(0, 20);
   return out;
 }
 
@@ -567,7 +575,7 @@ const getLog = (d) => state.logs[d] || emptyLog();
 function ensureLog(d) { if (!state.logs[d]) state.logs[d] = emptyLog(); return state.logs[d]; }
 function pruneLog(d) {
   const l = state.logs[d]; if (!l) return;
-  if (!l.steps && !l.water && !l.foods.length && !l.cardio.length && !Object.keys(l.bio).length && !(l.done || []).length) delete state.logs[d];
+  if (!l.steps && !l.water && !l.foods.length && !l.cardio.length && !Object.keys(l.bio).length && !(l.done || []).length && !(l.bp || []).length) delete state.logs[d];
 }
 const allFoods = () => FOOD_DB.concat(state.customFoods);
 const findFood = (id) => allFoods().find((f) => f.id === id);
@@ -646,7 +654,7 @@ function daySummary(date) {
   return {
     date, log: l, weight: w, bmr, bmrSoFar, intake, p, c, f, fib, stepKcal: sKcal, cardioKcal: cKcal, cardioMin: cMin, mvpaMin, overlapSteps, tef, burnt,
     deficit: burnt - intake, steps: l.steps, water: l.water, distance: l.steps * strideCm() / 100000,
-    hasFood: l.foods.length > 0, hasAny: l.foods.length > 0 || l.steps > 0 || l.water > 0 || l.cardio.length > 0
+    hasFood: l.foods.length > 0, hasAny: l.foods.length > 0 || l.steps > 0 || l.water > 0 || l.cardio.length > 0 || (l.bp || []).length > 0
   };
 }
 
@@ -822,6 +830,8 @@ function analyze(date) {
     audits.push({ key: 'recovery', title: 'Sleep & Recovery', icon: 'fa-bed', color: '#6366F1', st, head, det, metric: `${b.sleep ?? '-'} h • ${b.energy ?? '-'}/5`, pct: b.sleep !== undefined ? clamp(b.sleep / 8, 0, 1) : 0 });
   }
 
+  audits.push(bpAudit(date)); // informational only: blood pressure is not part of the Fitness Score
+
   // When food is not tracked, calories (25) and protein (20) are excluded and the rest is rescaled to 100.
   const raw = sum(Object.values(pts));
   const score = Math.round(clamp(foodOn ? raw : raw / 55 * 100, 0, 100));
@@ -878,10 +888,11 @@ const MEMBER_VIEWS = [
   { id: 'dashboard', label: 'Dashboard', short: 'Home', icon: 'fa-gauge-high' },
   { id: 'tracker', label: 'Daily Tracker', short: 'Tracker', icon: 'fa-list-check' },
   { id: 'insights', label: 'Scope of Improvement', short: 'Insights', icon: 'fa-wand-magic-sparkles' },
+  { id: 'bp', label: 'Blood Pressure', short: 'BP', icon: 'fa-stethoscope' },
   { id: 'planner', label: 'Veg Diet Planner', short: 'Diet', icon: 'fa-leaf' },
   { id: 'coach', label: 'My Coach', short: 'Coach', icon: 'fa-user-tie' },
   { id: 'profile', label: 'Profile & Biometrics', short: 'Profile', icon: 'fa-user-gear' },
-  { id: 'vault', label: 'Data Vault & Sync', short: 'Vault', icon: 'fa-cloud-arrow-up' },
+  { id: 'vault', label: 'Data Vault & Sync', short: 'Vault', icon: 'fa-cloud-arrow-up', mobile: false },
   { id: 'guide', label: 'User Guide', short: 'Guide', icon: 'fa-circle-question', mobile: false }
 ];
 const TRAINER_VIEWS = [
@@ -911,7 +922,7 @@ function go(view) {
 }
 
 function renderView() {
-  const map = { dashboard: renderDashboard, tracker: renderTracker, insights: renderInsights, planner: renderPlanner, profile: renderProfile, vault: renderVault, coach: renderCoach, guide: renderGuide, clients: renderClients, client: renderClient, trainerProfile: renderTrainerProfile };
+  const map = { dashboard: renderDashboard, tracker: renderTracker, insights: renderInsights, planner: renderPlanner, profile: renderProfile, vault: renderVault, bp: renderBp, coach: renderCoach, guide: renderGuide, clients: renderClients, client: renderClient, trainerProfile: renderTrainerProfile };
   (map[ui.view] || map[currentViews()[0].id])();
 }
 
@@ -1149,8 +1160,9 @@ function renderDashboard() {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-      <div class="card card-pad xl:col-span-2" data-tour="suggest">${suggestionCardHtml()}</div>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div class="card card-pad md:col-span-2" data-tour="suggest">${suggestionCardHtml()}</div>
+      <div class="card card-pad" data-tour="bp-card">${bpCardHtml()}</div>
       <div class="card card-pad">${coachTodayCardHtml()}</div>
     </div>
 
@@ -1577,6 +1589,7 @@ function renderInsights() {
         ${x.key === 'water' && x.st !== 'green' ? `<div class="mt-3 flex gap-1.5"><button class="btn btn-sm bg-cyan-100 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300" onclick="addWater(250)">+250 ml</button><button class="btn btn-sm bg-cyan-100 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300" onclick="addWater(500)">+500 ml</button></div>` : ''}
         ${x.key === 'steps' && x.st !== 'green' ? `<div class="mt-3 flex gap-1.5"><button class="btn btn-soft btn-sm" onclick="addSteps(${Math.max(0, targets().steps - daySummary(ui.date).steps)})"><i class="fa-solid fa-person-walking"></i>I walked it (+${fmt(Math.max(0, targets().steps - daySummary(ui.date).steps))} steps)</button></div>` : ''}
         ${x.key === 'cardio' && x.st !== 'green' ? `<div class="mt-3"><button class="btn btn-soft btn-sm" onclick="go('tracker')"><i class="fa-solid fa-heart-pulse"></i>Log a session</button></div>` : ''}
+        ${x.key === 'bp' ? `<div class="mt-3"><button class="btn btn-soft btn-sm" onclick="go('bp')"><i class="fa-solid fa-stethoscope"></i>Open BP tracker</button></div>` : ''}
         ${(x.key === 'weight' || x.key === 'recovery') && x.st === 'gray' ? `<div class="mt-3"><button class="btn btn-soft btn-sm" onclick="go('tracker')"><i class="fa-solid fa-clipboard-check"></i>Open check-in</button></div>` : ''}
       </div>`).join('')}
     </div>
@@ -2020,6 +2033,7 @@ function mergeStates(cloudState, deviceState) {
     c.steps = Math.max(c.steps, l.steps); c.water = Math.max(c.water, l.water);
     c.bio = { ...l.bio, ...c.bio };
     c.done = [...new Set([...(c.done || []), ...(l.done || [])])];
+    const bids = new Set((c.bp || []).map((x) => x.id)); c.bp = [...(c.bp || []), ...(l.bp || []).filter((x) => !bids.has(x.id))].sort((x, y) => x.time.localeCompare(y.time));
   });
   const fids = new Set(out.customFoods.map((f) => f.id));
   deviceState.customFoods.forEach((f) => { if (!fids.has(f.id)) out.customFoods.push(f); });
@@ -2431,11 +2445,11 @@ function importJSON(input) {
 function exportCSV() {
   const days = Object.keys(state.logs).sort();
   if (!days.length) return toast('Nothing to export yet. Log some data first', 'warn');
-  const head = ['Date', 'Weight (kg)', 'Waist (cm)', 'Sleep (h)', 'Energy (1-5)', 'Steps', 'Distance (km)', 'Water (ml)', 'Calories In (kcal)', 'BMR (kcal)', 'Digestion TEF (kcal)', 'Step Burn (kcal)', 'Exercise Burn net (kcal)', 'Calories Burnt (kcal)', 'Net Deficit (kcal)', 'Cardio Minutes', 'Protein (g)', 'Carbs (g)', 'Fat (g)', 'Fiber (g)', 'Fitness Score'];
+  const head = ['Date', 'Weight (kg)', 'Waist (cm)', 'Sleep (h)', 'Energy (1-5)', 'Steps', 'Distance (km)', 'Water (ml)', 'Calories In (kcal)', 'BMR (kcal)', 'Digestion TEF (kcal)', 'Step Burn (kcal)', 'Exercise Burn net (kcal)', 'Calories Burnt (kcal)', 'Net Deficit (kcal)', 'Cardio Minutes', 'Protein (g)', 'Carbs (g)', 'Fat (g)', 'Fiber (g)', 'Morning BP (mmHg)', 'Evening BP (mmHg)', 'Avg Pulse (bpm)', 'Fitness Score'];
   const q = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const rows = days.map((d) => {
     const s = daySummary(d), b = state.logs[d].bio;
-    return [d, b.weight ?? '', b.waist ?? '', b.sleep ?? '', b.energy ?? '', s.steps, r2(s.distance), s.water, Math.round(s.intake), Math.round(s.bmr), Math.round(s.tef), Math.round(s.stepKcal), Math.round(s.cardioKcal), Math.round(s.burnt), s.hasFood ? Math.round(s.deficit) : '', s.cardioMin, r1(s.p), r1(s.c), r1(s.f), r1(s.fib), analyze(d).score].map(q).join(',');
+    return [d, b.weight ?? '', b.waist ?? '', b.sleep ?? '', b.energy ?? '', s.steps, r2(s.distance), s.water, Math.round(s.intake), Math.round(s.bmr), Math.round(s.tef), Math.round(s.stepKcal), Math.round(s.cardioKcal), Math.round(s.burnt), s.hasFood ? Math.round(s.deficit) : '', s.cardioMin, r1(s.p), r1(s.c), r1(s.f), r1(s.fib), ...(() => { const b2 = bpDay(d); return [b2.morning.n ? fmtBp(b2.morning.sys, b2.morning.dia) : '', b2.evening.n ? fmtBp(b2.evening.sys, b2.evening.dia) : '', b2.all.pulse ? Math.round(b2.all.pulse) : '']; })(), analyze(d).score].map(q).join(',');
   });
   downloadFile(`miyeefit-pro-report-${todayStr()}.csv`, '﻿' + [head.join(','), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
   toast(`Progress report exported (${days.length} days)`);
@@ -2487,6 +2501,12 @@ async function loadDemoData() {
     if (i % 5 !== 2 || i === 0) l.bio.weight = r1(w + R(-0.2, 0.2));
     if (i % 3 === 0) l.bio.waist = r1(waist);
     if (!isToday || hourNow >= 7) { l.bio.sleep = r2(Math.round(R(5.75, 8.25) * 4) / 4); l.bio.energy = clamp(Math.round(R(2.6, 5.2)), 1, 5); }
+    { // home blood pressure: slowly improving with activity, morning slightly higher than evening
+      const baseS = 134 - (13 - i) * 0.45, baseD = 87 - (13 - i) * 0.3;
+      const mk = (slot, time, off) => ({ id: uid(), slot, time, sys: Math.round(baseS + off + R(-4, 4)), dia: Math.round(baseD + off / 2 + R(-3, 3)), pulse: Math.round(R(66, 78)), notes: '' });
+      if (!isToday || hourNow >= 8) l.bp.push(mk('morning', '07:15', 3));
+      if (!isToday || hourNow >= 20) l.bp.push(mk('evening', '19:45', -2));
+    }
     state.logs[d] = l;
   }
   const latest = latestWeightEntry();
@@ -2513,6 +2533,260 @@ async function factoryReset() {
   const pushed = await pushVault({ force: true });
   toast(pushed ? 'All your data was erased here and in the cloud. You are still signed in.' : 'Erased on this device. Your cloud copy will be cleared as soon as you are back online.', pushed ? 'info' : 'warn');
   if (!pushed) cloud.dirty = true;
+}
+
+/* =====================================================================
+ *  Module H: Blood Pressure & Pulse Tracker
+ *  Classification: ISH 2020 (International Society of Hypertension, aligned with
+ *  Indian and ESC/ESH guidelines) and ACC/AHA 2017. Home-monitoring threshold
+ *  135/85 mmHg (ISH 2020, ESH). Resting pulse 60 to 100 bpm (AHA).
+ * ===================================================================== */
+const BP_SLOTS = { morning: 'Morning', evening: 'Evening' };
+const BP_TONE = { green: { pill: 'pill-green', color: '#10B981' }, amber: { pill: 'pill-amber', color: '#F59E0B' }, red: { pill: 'pill-red', color: '#F43F5E' }, gray: { pill: 'pill-gray', color: '#A1A1AA' } };
+const avgOf = (xs) => (xs.length ? sum(xs) / xs.length : null);
+const fmtBp = (s, d) => (s == null ? '-' : `${Math.round(s)}/${Math.round(d)}`);
+
+function bpIsh(sys, dia) {
+  if (sys >= 180 || dia >= 110) return { key: 'severe', label: 'Severe hypertension', tone: 'red' };
+  if (sys >= 160 || dia >= 100) return { key: 'grade2', label: 'Grade 2 hypertension', tone: 'red' };
+  if (sys >= 140 || dia >= 90) return { key: 'grade1', label: 'Grade 1 hypertension', tone: 'red' };
+  if (sys >= 130 || dia >= 85) return { key: 'highnormal', label: 'High-normal', tone: 'amber' };
+  if (sys < 90 || dia < 60) return { key: 'low', label: 'Low (hypotension)', tone: 'amber' };
+  return { key: 'normal', label: 'Normal', tone: 'green' };
+}
+function bpAha(sys, dia) {
+  if (sys > 180 || dia > 120) return { label: 'Hypertensive crisis', tone: 'red' };
+  if (sys >= 140 || dia >= 90) return { label: 'Stage 2 hypertension', tone: 'red' };
+  if (sys >= 130 || dia >= 80) return { label: 'Stage 1 hypertension', tone: 'amber' };
+  if (sys >= 120) return { label: 'Elevated', tone: 'amber' };
+  if (sys < 90 || dia < 60) return { label: 'Low', tone: 'amber' };
+  return { label: 'Normal', tone: 'green' };
+}
+function bpHome(sys, dia) {
+  if (sys >= 135 || dia >= 85) return { label: 'Above the home threshold (135/85)', short: 'High', tone: 'red' };
+  if (sys >= 130 || dia >= 80) return { label: 'Upper-normal for home readings', short: 'Upper-normal', tone: 'amber' };
+  if (sys < 90 || dia < 60) return { label: 'Low for home readings', short: 'Low', tone: 'amber' };
+  return { label: 'Normal for home readings', short: 'Normal', tone: 'green' };
+}
+function pulseClass(p) {
+  if (p == null) return { label: '-', tone: 'gray' };
+  if (p > 100) return { label: 'High (above 100)', tone: 'red' };
+  if (p < 50) return { label: 'Low (below 50)', tone: 'amber' };
+  if (p < 60) return { label: 'Below 60 (normal if you are fit)', tone: 'green' };
+  return { label: 'Normal (60 to 100)', tone: 'green' };
+}
+const tonePill = (tone, text) => `<span class="pill ${BP_TONE[tone].pill}">${esc(text)}</span>`;
+
+function bpDay(date) {
+  const r = (getLog(date).bp || []);
+  const pick = (slot) => r.filter((x) => x.slot === slot);
+  const stat = (xs) => ({ sys: avgOf(xs.map((x) => x.sys)), dia: avgOf(xs.map((x) => x.dia)), pulse: avgOf(xs.filter((x) => x.pulse).map((x) => x.pulse)), n: xs.length });
+  return { date, readings: r, morning: stat(pick('morning')), evening: stat(pick('evening')), all: stat(r) };
+}
+
+function bpAnalysis(end = ui.date) {
+  const days7 = dateRange(end, 7).map(bpDay).filter((d) => d.all.n);
+  let readings7 = days7.flatMap((d) => d.readings);
+  // ESH/ISH protocol: with 4 or more days, the first day's readings are discarded.
+  if (days7.length >= 4) readings7 = days7.slice(1).flatMap((d) => d.readings);
+  const av = (xs, k) => avgOf(xs.filter((x) => x[k]).map((x) => x[k]));
+  const sys7 = av(readings7, 'sys'), dia7 = av(readings7, 'dia'), pulse7 = av(readings7, 'pulse');
+  const mornings = readings7.filter((x) => x.slot === 'morning'), evenings = readings7.filter((x) => x.slot === 'evening');
+  const days30 = dateRange(end, 30).map(bpDay).filter((d) => d.all.n);
+  const start30 = addDays(end, -29);
+  const sysPts = days30.map((d) => ({ x: daysBetween(start30, d.date), y: d.all.sys }));
+  const diaPts = days30.map((d) => ({ x: daysBetween(start30, d.date), y: d.all.dia }));
+  const span = sysPts.length >= 2 ? sysPts[sysPts.length - 1].x - sysPts[0].x : 0;
+  const r14 = dateRange(end, 14).map(bpDay).flatMap((d) => d.readings);
+  const sd = (xs) => { if (xs.length < 3) return null; const m = avgOf(xs); return Math.sqrt(sum(xs, (x) => (x - m) ** 2) / (xs.length - 1)); };
+  const active = [], rest = [];
+  days30.forEach((d) => { (daySummary(d.date).cardioMin >= 30 ? active : rest).push(d.all.sys); });
+  return {
+    n7: readings7.length, days7: days7.length, reliable: days7.length >= 3 && readings7.length >= 6,
+    sys7, dia7, pulse7, home: sys7 != null ? bpHome(sys7, dia7) : null, ish7: sys7 != null ? bpIsh(sys7, dia7) : null,
+    mSys: av(mornings, 'sys'), mDia: av(mornings, 'dia'), eSys: av(evenings, 'sys'), eDia: av(evenings, 'dia'), nM: mornings.length, nE: evenings.length,
+    trendSys: span >= 7 && sysPts.length >= 5 ? linSlope(sysPts) * 7 : null, trendDia: span >= 7 && diaPts.length >= 5 ? linSlope(diaPts) * 7 : null, trendDays: days30.length,
+    sdSys: sd(r14.map((x) => x.sys)),
+    pp: sys7 != null ? sys7 - dia7 : null, map: sys7 != null ? dia7 + (sys7 - dia7) / 3 : null,
+    activeSys: active.length >= 3 && rest.length >= 3 ? avgOf(active) : null, restSys: active.length >= 3 && rest.length >= 3 ? avgOf(rest) : null, nActive: active.length, nRest: rest.length,
+    last: (() => { for (let i = 0; i < 30; i++) { const d = bpDay(addDays(end, -i)); if (d.readings.length) return { date: d.date, r: d.readings[d.readings.length - 1] }; } return null; })()
+  };
+}
+
+function bpTips(a) {
+  const tips = [];
+  const key = a.ish7 ? a.ish7.key : null;
+  if (key === 'severe' || key === 'grade2' || key === 'grade1' || (a.home && a.home.tone === 'red')) tips.push('Share these readings with your doctor soon. Home averages at or above 135/85 meet the international definition of high blood pressure and should be confirmed by a doctor.');
+  if (key === 'low') tips.push('If low readings come with dizziness, fainting or weakness, sit or lie down, drink water and talk to your doctor.');
+  tips.push('Keep salt under 5 g a day (about one teaspoon), as recommended by WHO. Go easy on pickles, papad, namkeen, and packaged or restaurant food.');
+  tips.push('Eat more potassium-rich vegetarian foods: vegetables, fruit such as banana and papaya, dals, and low-fat curd. This DASH-style pattern lowers blood pressure.');
+  tips.push('Aim for at least 150 minutes of moderate activity a week, such as brisk walking. Regular exercise typically lowers systolic pressure by 4 to 8 mmHg.');
+  if (state.profile.currentWeight && bmiInfo().bmi >= 23) tips.push('Losing weight helps: roughly 1 mmHg lower systolic pressure for every kg lost.');
+  tips.push('Sleep 7 to 9 hours, limit alcohol and caffeine, and do not smoke.');
+  tips.push('Take any prescribed blood pressure medicine exactly as advised. Never stop or change it based on this app.');
+  return tips;
+}
+
+/* ---------- Logging ---------- */
+function defaultBpSlot() { return ui.date === todayStr() && new Date().getHours() >= 14 ? 'evening' : (ui.bpSlot || 'morning'); }
+function addBpReading() {
+  const sys = Math.round(num($('bpSys').value, NaN)), dia = Math.round(num($('bpDia').value, NaN));
+  const pulseRaw = $('bpPulse').value.trim(), pulse = pulseRaw ? Math.round(num(pulseRaw, NaN)) : null;
+  if (!(sys >= 60 && sys <= 260)) return toast('Systolic (top number) should be between 60 and 260 mmHg', 'warn');
+  if (!(dia >= 30 && dia <= 160)) return toast('Diastolic (bottom number) should be between 30 and 160 mmHg', 'warn');
+  if (sys <= dia) return toast('Systolic (top number) must be higher than diastolic (bottom number)', 'warn');
+  if (pulse !== null && !(pulse >= 30 && pulse <= 220)) return toast('Pulse should be between 30 and 220 bpm', 'warn');
+  const slot = ui.bpSlot || defaultBpSlot();
+  const time = /^\d{2}:\d{2}$/.test($('bpTime').value) ? $('bpTime').value : (slot === 'morning' ? '07:30' : '20:00');
+  const l = ensureLog(ui.date);
+  l.bp.push({ id: uid(), slot, time, sys, dia, pulse, notes: $('bpNotes').value.trim().slice(0, 120) });
+  l.bp.sort((a, b) => a.time.localeCompare(b.time));
+  refresh();
+  const c = bpIsh(sys, dia);
+  if (c.key === 'severe') {
+    openModal('<i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Very high reading', `
+      <p class="text-sm"><b>${sys}/${dia} mmHg</b> is in the severe range (180/110 or higher).</p>
+      <ol class="mt-3 list-decimal space-y-1 pl-5 text-sm">
+        <li>Sit quietly for 5 minutes and measure again.</li>
+        <li>If it is still this high, contact your doctor today.</li>
+        <li><b>Get emergency help now</b> if you also have chest pain, shortness of breath, a severe headache, weakness or numbness, difficulty speaking, or blurred vision.</li>
+      </ol>`);
+  } else toast(`${BP_SLOTS[slot]} reading saved: ${sys}/${dia}${pulse ? `, pulse ${pulse}` : ''} (${c.label})`, c.tone === 'green' ? 'success' : 'warn');
+}
+function removeBpReading(id) { const l = ensureLog(ui.date); l.bp = l.bp.filter((x) => x.id !== id); pruneLog(ui.date); refresh(); toast('Reading removed', 'info'); }
+
+/* ---------- Cards used elsewhere ---------- */
+function bpCardHtml() {
+  const a = bpAnalysis(), today = bpDay(ui.date);
+  const head = '<div class="flex items-center justify-between"><div class="h-title"><i class="fa-solid fa-stethoscope mr-1 text-rose-500"></i>Blood Pressure</div>';
+  if (!a.last) return `${head}</div><p class="mt-2 text-sm muted">Track your blood pressure and pulse each morning and evening to see your home average and trend.</p><button class="btn btn-soft btn-sm mt-3" onclick="go('bp')"><i class="fa-solid fa-plus"></i>Log a reading</button>`;
+  return `${head}${a.home ? tonePill(a.home.tone, a.home.short) : ''}</div>
+    <div class="mt-3 flex items-end gap-4"><div><div class="text-[11px] font-bold uppercase muted">7-day average</div><div class="text-2xl font-extrabold">${fmtBp(a.sys7, a.dia7)}<span class="text-xs font-semibold muted"> mmHg</span></div></div>
+      <div><div class="text-[11px] font-bold uppercase muted">Pulse</div><div class="text-xl font-extrabold">${a.pulse7 ? Math.round(a.pulse7) : '-'}<span class="text-xs font-semibold muted"> bpm</span></div></div></div>
+    <div class="mt-2 text-xs muted">${ui.date === todayStr() ? 'Today' : fmtDate(ui.date)}: morning ${today.morning.n ? fmtBp(today.morning.sys, today.morning.dia) : 'not logged'} • evening ${today.evening.n ? fmtBp(today.evening.sys, today.evening.dia) : 'not logged'}</div>
+    <button class="btn btn-soft btn-sm mt-3" onclick="go('bp')"><i class="fa-solid fa-stethoscope"></i>Open BP tracker</button>`;
+}
+function bpAudit(date) {
+  const a = bpAnalysis(date);
+  if (!a.n7) return { key: 'bp', noScore: true, title: 'Blood Pressure (not scored)', icon: 'fa-stethoscope', color: '#F43F5E', st: 'gray', head: 'No BP readings this week', det: 'Optional: log your blood pressure and pulse each morning and evening in the BP tracker to see your 7-day home average.', metric: '0 readings', pct: 0 };
+  const st = a.home.tone === 'green' ? 'green' : a.home.tone === 'amber' ? 'amber' : 'red';
+  return { key: 'bp', noScore: true, title: 'Blood Pressure (not scored)', icon: 'fa-stethoscope', color: '#F43F5E', st,
+    head: `Home average ${fmtBp(a.sys7, a.dia7)} mmHg`,
+    det: `${a.home.label}. Based on ${a.n7} reading(s) over ${a.days7} day(s)${a.reliable ? '' : '; measure morning and evening for at least 3 days for a reliable average'}. ${st === 'red' ? 'Share these readings with your doctor.' : st === 'amber' ? 'Cut salt, keep walking daily and keep monitoring.' : 'Keep it up.'}`,
+    metric: `${fmtBp(a.sys7, a.dia7)}${a.pulse7 ? ` • ${Math.round(a.pulse7)} bpm` : ''}`, pct: clamp(1 - Math.max(0, a.sys7 - 120) / 40, 0, 1) };
+}
+
+/* ---------- BP view ---------- */
+function renderBp() {
+  const a = bpAnalysis(), today = bpDay(ui.date);
+  if (!ui.bpSlot || ui.bpSlotDate !== ui.date) { ui.bpSlot = defaultBpSlot(); ui.bpSlotDate = ui.date; }
+  const nowT = ui.date === todayStr() ? `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` : (ui.bpSlot === 'morning' ? '07:30' : '20:00');
+  const reading = (x) => { const c = bpIsh(x.sys, x.dia), h = bpAha(x.sys, x.dia), pc = pulseClass(x.pulse); return `
+    <div class="flex items-center gap-3 rounded-xl border border-amber-100 p-3 dark:border-white/5">
+      <div class="w-12 text-center"><div class="text-xs font-bold muted">${esc(x.time)}</div><i class="fa-solid ${x.slot === 'morning' ? 'fa-sun text-amber-500' : 'fa-moon text-indigo-400'}"></i></div>
+      <div class="min-w-0 flex-1"><div class="text-lg font-extrabold">${x.sys}/${x.dia} <span class="text-xs font-semibold muted">mmHg</span>${x.pulse ? ` <span class="ml-2 text-sm font-bold text-rose-500"><i class="fa-solid fa-heart"></i> ${x.pulse}</span> <span class="text-xs muted">bpm</span>` : ''}</div>
+        <div class="mt-1 flex flex-wrap gap-1">${tonePill(c.tone, 'ISH: ' + c.label)}${tonePill(h.tone, 'AHA: ' + h.label)}${x.pulse ? tonePill(pc.tone, 'Pulse: ' + pc.label) : ''}</div>${x.notes ? `<div class="mt-1 text-xs muted">${esc(x.notes)}</div>` : ''}</div>
+      <button class="btn btn-ghost btn-sm !px-1.5 text-rose-500" onclick="removeBpReading('${x.id}')" aria-label="Remove reading"><i class="fa-solid fa-trash-can"></i></button></div>`; };
+  const slotBlock = (slot) => { const d = today[slot]; const rs = today.readings.filter((x) => x.slot === slot); return `
+    <div><div class="mb-2 flex items-center justify-between"><div class="flex items-center gap-2 text-sm font-bold"><i class="fa-solid ${slot === 'morning' ? 'fa-sun text-amber-500' : 'fa-moon text-indigo-400'}"></i>${BP_SLOTS[slot]}</div>${d.n ? `<div class="text-xs muted">Average <b class="text-zinc-800 dark:text-zinc-100">${fmtBp(d.sys, d.dia)}</b>${d.pulse ? ` • ${Math.round(d.pulse)} bpm` : ''}</div>` : ''}</div>
+    <div class="space-y-2">${rs.length ? rs.map(reading).join('') : `<div class="rounded-xl border border-dashed border-amber-200 p-3 text-center text-xs muted dark:border-white/10">No ${slot} reading</div>`}</div></div>`; };
+  const stat = (label, value, sub, tone) => `<div class="card p-4"><div class="text-[11px] font-bold uppercase muted">${label}</div><div class="mt-1 text-xl font-extrabold">${value}</div><div class="mt-1 text-xs muted">${sub}</div>${tone ? `<div class="mt-2">${tone}</div>` : ''}</div>`;
+  const trendTxt = (v) => (v == null ? '-' : `${v > 0 ? '+' : ''}${r1(v)} mmHg/week`);
+  const diff = a.nM >= 2 && a.nE >= 2 ? a.mSys - a.eSys : null;
+  const hist = dateRange(ui.date, 14).map(bpDay).filter((d) => d.all.n).reverse();
+  const curKey = a.ish7 ? a.ish7.key : null;
+  $('view-bp').innerHTML = `
+  <div class="fade-in space-y-5">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div><h1 class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">Blood <span class="text-grad">Pressure</span></h1>
+      <p class="text-sm muted">Morning and evening readings with pulse • classified by ISH 2020 and ACC/AHA 2017 • ${fmtLong(ui.date)}</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+      <div class="card card-pad" data-tour="bp-log">
+        <div class="h-title"><i class="fa-solid fa-plus mr-1 text-rose-500"></i>Log a reading</div>
+        <div class="mt-3 grid grid-cols-2 gap-1.5">${Object.entries(BP_SLOTS).map(([k, v]) => `<button class="chip !rounded-lg !py-2 ${ui.bpSlot === k ? 'active' : ''}" onclick="ui.bpSlot='${k}';renderBp()"><i class="fa-solid ${k === 'morning' ? 'fa-sun' : 'fa-moon'}"></i> ${v}</button>`).join('')}</div>
+        <div class="mt-3 grid grid-cols-2 gap-2">
+          <div><label class="label" for="bpSys">Systolic (top)</label><input id="bpSys" type="number" inputmode="numeric" min="60" max="260" class="input" placeholder="e.g. 128"></div>
+          <div><label class="label" for="bpDia">Diastolic (bottom)</label><input id="bpDia" type="number" inputmode="numeric" min="30" max="160" class="input" placeholder="e.g. 82"></div>
+          <div><label class="label" for="bpPulse">Pulse (bpm)</label><input id="bpPulse" type="number" inputmode="numeric" min="30" max="220" class="input" placeholder="e.g. 72"></div>
+          <div><label class="label" for="bpTime">Time</label><input id="bpTime" type="time" class="input" value="${nowT}"></div>
+          <div class="col-span-2"><label class="label" for="bpNotes">Notes (optional)</label><input id="bpNotes" class="input" maxlength="120" placeholder="e.g. left arm, before medicine"></div>
+        </div>
+        <button class="btn btn-primary mt-3 w-full" onclick="addBpReading()"><i class="fa-solid fa-floppy-disk"></i>Save ${BP_SLOTS[ui.bpSlot].toLowerCase()} reading</button>
+        <details class="mt-4 text-sm"><summary class="cursor-pointer font-semibold text-amber-700 dark:text-amber-400">How to measure correctly</summary>
+          <ul class="mt-2 list-disc space-y-1 pl-5 text-xs muted">
+            <li>No caffeine, smoking or exercise for 30 minutes before. Empty your bladder.</li>
+            <li>Sit with your back supported and feet flat for 5 minutes. Do not talk.</li>
+            <li>Rest your arm on a table with the cuff at heart level, on bare skin.</li>
+            <li>Take 2 readings 1 minute apart and log both.</li>
+            <li>Morning: within an hour of waking, before breakfast and medicine. Evening: before dinner.</li>
+            <li>Measure for at least 3 to 7 days in a row for a reliable home average (ISH 2020).</li>
+          </ul></details>
+      </div>
+      <div class="card card-pad xl:col-span-2">
+        <div class="flex items-center justify-between"><div class="h-title">${ui.date === todayStr() ? "Today's readings" : 'Readings for ' + fmtDate(ui.date, { weekday: 'short', day: 'numeric', month: 'short' })}</div><span class="text-xs muted">${today.readings.length} reading(s)</span></div>
+        <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">${slotBlock('morning')}${slotBlock('evening')}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-tour="bp-analysis">
+      ${stat('7-day home average', a.sys7 != null ? `${fmtBp(a.sys7, a.dia7)} <span class="text-xs muted">mmHg</span>` : '-', a.n7 ? `${a.n7} reading(s), ${a.days7} day(s)${a.reliable ? '' : '. Measure 3+ days, morning and evening'}` : 'No readings in the last 7 days', a.home ? tonePill(a.home.tone, a.home.label) : '')}
+      ${stat('Average pulse', a.pulse7 ? `${Math.round(a.pulse7)} <span class="text-xs muted">bpm</span>` : '-', 'Normal resting range 60 to 100 bpm', a.pulse7 ? tonePill(pulseClass(a.pulse7).tone, pulseClass(a.pulse7).label) : '')}
+      ${stat('Morning vs evening', diff != null ? `${diff > 0 ? '+' : ''}${Math.round(diff)} <span class="text-xs muted">mmHg</span>` : '-', diff != null ? `Morning ${fmtBp(a.mSys, a.mDia)} • evening ${fmtBp(a.eSys, a.eDia)}` : 'Needs 2+ morning and 2+ evening readings', diff != null ? tonePill(diff >= 15 ? 'amber' : 'green', diff >= 15 ? 'Morning is notably higher' : 'Balanced') : '')}
+      ${stat('30-day trend', trendTxt(a.trendSys), a.trendSys != null ? `Diastolic ${trendTxt(a.trendDia)} • ${a.trendDays} day(s) with readings` : 'Needs 5+ days of readings over at least a week', a.trendSys != null ? tonePill(a.trendSys <= -0.5 ? 'green' : a.trendSys >= 1 ? 'red' : 'gray', a.trendSys <= -0.5 ? 'Improving' : a.trendSys >= 1 ? 'Rising' : 'Stable') : '')}
+      ${stat('Day-to-day variability', a.sdSys != null ? `±${r1(a.sdSys)} <span class="text-xs muted">mmHg</span>` : '-', 'Spread of systolic readings over 14 days. Lower is steadier.', a.sdSys != null ? tonePill(a.sdSys > 15 ? 'amber' : 'green', a.sdSys > 15 ? 'High variability' : 'Steady') : '')}
+      ${stat('Pulse pressure', a.pp != null ? `${Math.round(a.pp)} <span class="text-xs muted">mmHg</span>` : '-', 'Systolic minus diastolic. Typical adult range is about 40 to 60.', a.pp != null ? tonePill(a.pp > 60 ? 'amber' : a.pp < 25 ? 'amber' : 'green', a.pp > 60 ? 'Wide' : a.pp < 25 ? 'Narrow' : 'Typical') : '')}
+      ${stat('Mean arterial pressure', a.map != null ? `${Math.round(a.map)} <span class="text-xs muted">mmHg</span>` : '-', 'Average pressure in your arteries during one heartbeat (70 to 100 is typical).', '')}
+      ${stat('Exercise days vs rest days', a.activeSys != null ? `${Math.round(a.activeSys)} vs ${Math.round(a.restSys)}` : '-', a.activeSys != null ? `Average systolic on days with 30+ min exercise (${a.nActive}) vs other days (${a.nRest})` : 'Needs 3+ exercise days and 3+ rest days with readings', a.activeSys != null ? tonePill(a.activeSys < a.restSys ? 'green' : 'gray', a.activeSys < a.restSys ? `${Math.round(a.restSys - a.activeSys)} mmHg lower when active` : 'No clear difference yet') : '')}
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div class="card card-pad xl:col-span-2">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><div><div class="h-title">Blood pressure trend</div><div class="text-xs muted">Daily morning and evening averages • dashed lines = home threshold 135/85</div></div>
+          <div class="flex gap-1">${[14, 30].map((r) => `<button class="chip ${(ui.bpRange || 14) === r ? 'active' : ''}" onclick="ui.bpRange=${r};renderBp()">${r}D</button>`).join('')}</div></div>
+        <div class="h-64"><canvas id="chBp"></canvas></div>
+      </div>
+      <div class="card card-pad"><div class="h-title">Pulse trend</div><div class="text-xs muted">Daily average, bpm</div><div class="mt-3 h-56"><canvas id="chPulse"></canvas></div></div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div class="card card-pad">
+        <div class="h-title"><i class="fa-solid fa-lightbulb mr-1 text-amber-500"></i>What to do</div>
+        <ul class="mt-3 space-y-2 text-sm">${bpTips(a).map((t) => `<li class="flex gap-2"><i class="fa-solid fa-check mt-1 text-emerald-500"></i><span>${esc(t)}</span></li>`).join('')}</ul>
+        <p class="mt-3 text-[11px] muted">This tracker supports, but does not replace, medical advice. Diagnosis needs confirmation by a doctor.</p>
+      </div>
+      <div class="card card-pad">
+        <div class="h-title">Classification guide</div>
+        <div class="scroll-thin mt-3 overflow-x-auto"><table class="tbl w-full">
+          <thead><tr><th>ISH 2020 category</th><th>Systolic</th><th></th><th>Diastolic</th></tr></thead>
+          <tbody>${[['normal', 'Normal', '< 130', 'and', '< 85'], ['highnormal', 'High-normal', '130 to 139', 'and/or', '85 to 89'], ['grade1', 'Grade 1 hypertension', '140 to 159', 'and/or', '90 to 99'], ['grade2', 'Grade 2 hypertension', '≥ 160', 'and/or', '≥ 100'], ['severe', 'Severe (seek care)', '≥ 180', 'and/or', '≥ 110'], ['low', 'Low (hypotension)', '< 90', 'or', '< 60']].map(([k, l, s, j, d]) => `<tr class="${curKey === k ? 'bg-amber-50 font-bold dark:bg-amber-400/10' : ''}"><td>${l}${curKey === k ? ' ◀ you' : ''}</td><td>${s}</td><td class="muted">${j}</td><td>${d}</td></tr>`).join('')}</tbody></table></div>
+        <p class="mt-2 text-[11px] muted">Home readings: an average of 135/85 or higher means high blood pressure (ISH 2020, ESH). ACC/AHA 2017 uses lower cut-offs: elevated 120 to 129, stage 1 from 130/80, stage 2 from 140/90.</p>
+      </div>
+    </div>
+
+    <div class="card card-pad">
+      <div class="h-title">Last 14 days</div>
+      <div class="scroll-thin mt-3 overflow-x-auto"><table class="tbl w-full">
+        <thead><tr><th>Date</th><th>Morning</th><th>Evening</th><th>Day average</th><th>Pulse</th><th>ISH category</th></tr></thead>
+        <tbody>${hist.length ? hist.map((d) => { const c = bpIsh(d.all.sys, d.all.dia); return `<tr class="cursor-pointer hover:bg-amber-50/60 dark:hover:bg-white/[.03]" onclick="setDate('${d.date}')"><td class="font-semibold">${fmtDate(d.date, { weekday: 'short', day: 'numeric', month: 'short' })}</td><td>${d.morning.n ? fmtBp(d.morning.sys, d.morning.dia) : '-'}</td><td>${d.evening.n ? fmtBp(d.evening.sys, d.evening.dia) : '-'}</td><td class="font-bold">${fmtBp(d.all.sys, d.all.dia)}</td><td>${d.all.pulse ? Math.round(d.all.pulse) : '-'}</td><td>${tonePill(c.tone, c.label)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="text-center muted">No readings yet</td></tr>'}</tbody></table></div>
+    </div>
+  </div>`;
+  drawBpCharts();
+}
+
+function drawBpCharts() {
+  const days = dateRange(ui.date, ui.bpRange || 14), cc = chartColors();
+  const ds = days.map(bpDay);
+  const val = (d, slot, k) => (d[slot].n && d[slot][k] != null ? Math.round(d[slot][k]) : null);
+  const line = (label, data, color, dash) => ({ label, data, borderColor: color, backgroundColor: color, borderDash: dash || [], pointRadius: dash ? 0 : 3, borderWidth: dash ? 1.5 : 2.2, spanGaps: true, tension: 0.3, fill: false });
+  mkChart('chBp', { type: 'line', data: { labels: days.map((d) => fmtDate(d)), datasets: [
+    line('Morning systolic', ds.map((d) => val(d, 'morning', 'sys')), '#F43F5E'), line('Evening systolic', ds.map((d) => val(d, 'evening', 'sys')), '#FB923C'),
+    line('Morning diastolic', ds.map((d) => val(d, 'morning', 'dia')), '#8B5CF6'), line('Evening diastolic', ds.map((d) => val(d, 'evening', 'dia')), '#06B6D4'),
+    line('135 systolic threshold', days.map(() => 135), 'rgba(244,63,94,.55)', [6, 5]), line('85 diastolic threshold', days.map(() => 85), 'rgba(139,92,246,.55)', [6, 5])] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: cc.text, filter: (it) => !/threshold/.test(it.text) } } }, scales: { ...baseScales('mmHg'), y: { ...baseScales('mmHg').y, suggestedMin: 60, suggestedMax: 160 } } } });
+  mkChart('chPulse', { type: 'line', data: { labels: days.map((d) => fmtDate(d)), datasets: [line('Pulse', ds.map((d) => (d.all.pulse ? Math.round(d.all.pulse) : null)), '#F43F5E'), line('60', days.map(() => 60), 'rgba(16,185,129,.5)', [4, 4]), line('100', days.map(() => 100), 'rgba(16,185,129,.5)', [4, 4])] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { ...baseScales('bpm'), y: { ...baseScales('bpm').y, suggestedMin: 50, suggestedMax: 110 } } } });
 }
 
 /* =====================================================================
@@ -2758,7 +3032,7 @@ function renderClient() {
       const lastDay = Object.keys(state.logs).sort().pop();
       const g = scoreGrade(a.score);
       return `
-      <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
         ${[['Weight', `${r1(p.currentWeight)} kg`, `Start ${r1(p.startWeight)} • Goal ${r1(p.targetWeight)} • ${Math.round(pr.pct * 100)}%`, 'fa-weight-scale', '#8B5CF6'],
            ['Score today', `${a.score}`, `${g.label} • 7-day avg ${Math.round(avg((x) => x.sc))}`, 'fa-medal', g.color],
            ['Avg intake', `${fmt(avg((x) => x.s.intake))} kcal`, `Target ${fmt(t.kcal)} • Deficit ${fmt(avg((x) => x.s.deficit))}`, 'fa-utensils', '#10B981'],
@@ -2766,7 +3040,8 @@ function renderClient() {
            ['Cardio (7 days)', `${Math.round(sum(days, (x) => x.s.cardioMin))} min`, `Target ${t.cardio} min/day`, 'fa-heart-pulse', '#F43F5E'],
            ['Avg water', `${r2(avg((x) => x.s.water) / 1000)} L`, `Target ${r2(t.water / 1000)} L`, 'fa-droplet', '#06B6D4'],
            ['Avg protein', `${r1(avg((x) => x.s.p))} g`, `Minimum ${Math.round(t.proteinMin)} g`, 'fa-seedling', '#8B5CF6'],
-           ['Exercises done', sched ? `${doneN}/${sched}` : '-', `Last log ${lastDay ? fmtDate(lastDay) : 'never'} • ${p.dietType === 'jain' ? 'Jain diet' : 'Vegetarian'}`, 'fa-dumbbell', '#EA580C']
+           ['Exercises done', sched ? `${doneN}/${sched}` : '-', `Last log ${lastDay ? fmtDate(lastDay) : 'never'} • ${p.dietType === 'jain' ? 'Jain diet' : 'Vegetarian'}`, 'fa-dumbbell', '#EA580C'],
+           ...(() => { const ba = bpAnalysis(today); return [['Home BP (7 days)', ba.sys7 != null ? `${fmtBp(ba.sys7, ba.dia7)}` : '-', ba.sys7 != null ? `${ba.home.short} • pulse ${ba.pulse7 ? Math.round(ba.pulse7) : '-'} bpm • ${ba.n7} reading(s)` : 'No readings this week', 'fa-stethoscope', ba.home ? BP_TONE[ba.home.tone].color : '#A1A1AA']]; })()
           ].map(([l, v, sub, ic, col]) => `<div class="card p-3"><div class="text-[11px] font-bold uppercase muted"><i class="fa-solid ${ic}" style="color:${col}"></i> ${l}</div><div class="mt-1 text-xl font-extrabold">${v}</div><div class="text-[11px] muted">${sub}</div></div>`).join('')}
       </div>
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -2985,6 +3260,7 @@ const TOURS = {
     { view: 'tracker', sel: '[data-tour="food"]', title: 'Log food', body: 'Search 68 vegetarian foods, choose the meal and quantity, then press +. Tap the Jain chip to see only Jain-friendly items.' },
     { view: 'tracker', sel: '[data-tour="cardio"]', title: 'Log workouts', body: 'Pick an activity, duration and intensity. Calories burnt are calculated from your weight automatically.' },
     { view: 'insights', sel: '[data-tour="audits"]', title: 'Scope of Improvement', body: 'Each card checks one habit and tells you exactly how to fix it, often with a one-tap button.' },
+    { view: 'bp', sel: '[data-tour="bp-log"]', title: 'Blood pressure', body: 'Log your blood pressure and pulse each morning and evening. You get each reading classified, a 7-day home average, trends and tips.' },
     { view: 'planner', sel: '[data-tour="templates"]', title: 'Diet planner', body: 'Choose a vegetarian or Jain plan. It scales to your calorie target, and you can swap any meal or add it to your log.' },
     { view: 'profile', sel: '[data-tour="diet-trainer"]', title: 'Diet type and trainer', body: 'Set Pure Vegetarian or Jain, and choose your trainer from the list. If no trainers are listed yet, the list stays empty.' },
     { view: 'profile', sel: '[data-tour="goals"]', title: 'Your own targets', body: 'Set your step, water, cardio and calorie goals here. Targets set by your coach are locked and marked "Set by coach".' },
@@ -3064,6 +3340,7 @@ function renderGuide() {
     sec('fa-bowl-food', 'Diet suggestions & Jain option', ['The Dashboard suggests a realistic next meal that fits the calories and protein you have left.', 'Set <b>Diet preference</b> to Jain in Profile to see only Jain-friendly food (no onion, garlic or root vegetables) in suggestions and plans.', 'In <b>Veg Diet Planner</b>, choose a plan, pick your calorie level, swap meals you do not like, and add a meal or the whole day to your log.', 'The cheat sheet ranks the best vegetarian protein and fibre sources per 100 kcal.']),
     sec('fa-wand-magic-sparkles', 'Score & Scope of Improvement', ['Your Daily Fitness Score (0 to 100) appears in the header.', 'Open <b>Scope of Improvement</b> to see red, amber and green audits with exact fixes.', 'Short on protein? Tap a suggested food to add it instantly.', 'Use the 7-day table and score trend to spot patterns.']),
     sec('fa-user-tie', 'Working with your trainer', ['Choose a trainer in <b>Profile</b> or <b>My Coach</b>. If none are listed yet, the list stays empty.', 'Your trainer sees your logged progress and can set your steps, cardio, water, calories and protein.', 'Targets set by your coach show "Set by coach" and are locked; anything they leave blank you set yourself in Profile.', 'Tick off exercises in <b>My Coach</b> each day; your coach sees what you completed.', 'Read your coach\'s instructions and message them from My Coach. You can change or remove your coach any time.']),
+    sec('fa-stethoscope', 'Blood pressure & pulse', ['Open <b>Blood Pressure</b> and choose <b>Morning</b> or <b>Evening</b>.', 'Enter systolic (top number), diastolic (bottom number) and pulse, then save. Take 2 readings 1 minute apart and log both.', 'Each reading is classified by ISH 2020 and ACC/AHA 2017; pulse is checked against the normal 60 to 100 bpm range.', 'The analysis shows your 7-day home average against the 135/85 home threshold, morning vs evening, trend, variability, pulse pressure and exercise-day effect.', 'Blood pressure is shown in Scope of Improvement but does not change your Fitness Score. Always confirm high readings with your doctor.']),
     sec('fa-download', 'Install on your phone or laptop', ['Chrome or Edge on a laptop: click the install icon in the address bar, or use the <b>Install app</b> button in the sidebar.', 'Android: open the browser menu and tap <b>Install app</b> or <b>Add to Home screen</b>.', 'iPhone or iPad: in Safari tap <b>Share</b>, then <b>Add to Home Screen</b>.', 'The installed app opens in its own window, works offline and keeps your sign-in and data.']),
     sec('fa-cloud', 'Sync, backups & privacy', ['When signed in, every change saves on this device and to your cloud account automatically.', 'Sign in on another device with the same email to get your data there.', 'Export a JSON backup or CSV report from <b>Data Vault</b> at any time.', 'Passwords cannot be recovered, so keep a backup and remember your password.'])
   ];
